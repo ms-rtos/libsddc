@@ -99,7 +99,7 @@ typedef uint8_t sddc_bool_t;
  */
 
 /* Header uid length */
-#define JSRE_SDDC_UID_LEN     8
+#define SDDC_UID_LEN     8
 
 /**
  * @brief Callback function on receive INVITE request.

@@ -26,7 +26,7 @@ static int key3_fd;
 
 static u8x8_t u8x8;                    // u8x8 object
 static ms_uint8_t u8x8_x, u8x8_y;      // current position on the screen
-static ms_bool_t led_state_now[3];
+static ms_bool_t led_state_bak[3];
 
 static void iot_pi_display_init(void)
 {
@@ -89,9 +89,9 @@ static void iot_pi_report_led_state(ms_bool_t *led_state)
         cJSON_AddBoolToObject(root, "led3", led_state[2]);
 
     } else {
-        cJSON_AddBoolToObject(root, "led1", led_state_now[0]);
-        cJSON_AddBoolToObject(root, "led2", led_state_now[1]);
-        cJSON_AddBoolToObject(root, "led3", led_state_now[2]);
+        cJSON_AddBoolToObject(root, "led1", led_state_bak[0]);
+        cJSON_AddBoolToObject(root, "led2", led_state_bak[1]);
+        cJSON_AddBoolToObject(root, "led3", led_state_bak[2]);
     }
 
     str = cJSON_Print(root);
@@ -110,7 +110,7 @@ static ms_bool_t iot_pi_on_message(const struct sockaddr_in *addr, const char *m
     cJSON *display;
     ms_bool_t led_state[3];
 
-    memcpy(led_state, led_state_now, sizeof(led_state_now));
+    memcpy(led_state, led_state_bak, sizeof(led_state_bak));
 
     char *str = cJSON_Print(root);
     ms_printf("iot_pi_on_message: %s\n", str);
@@ -183,7 +183,7 @@ static ms_bool_t iot_pi_on_message(const struct sockaddr_in *addr, const char *m
     cJSON_Delete(root);
 
     iot_pi_report_led_state(led_state);
-    memcpy(led_state_now, led_state, sizeof(led_state_now));
+    memcpy(led_state_bak, led_state, sizeof(led_state_bak));
 
     return MS_TRUE;
 }
@@ -433,13 +433,13 @@ int main(int argc, char *argv[])
     /*
      * Read led state
      */
-    ms_io_read(led1_fd, &led_state_now[0], 1);
-    ms_io_read(led2_fd, &led_state_now[1], 1);
-    ms_io_read(led3_fd, &led_state_now[2], 1);
+    ms_io_read(led1_fd, &led_state_bak[0], 1);
+    ms_io_read(led2_fd, &led_state_bak[1], 1);
+    ms_io_read(led3_fd, &led_state_bak[2], 1);
 
-    led_state_now[0] = !led_state_now[0];
-    led_state_now[1] = !led_state_now[1];
-    led_state_now[2] = !led_state_now[2];
+    led_state_bak[0] = !led_state_bak[0];
+    led_state_bak[1] = !led_state_bak[1];
+    led_state_bak[2] = !led_state_bak[2];
 
     /*
      * Create keys scan thread
