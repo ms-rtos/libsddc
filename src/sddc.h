@@ -165,7 +165,7 @@ typedef void (*sddc_on_message_ack_t)(const struct sockaddr_in *addr, uint16_t s
 int sddc_set_on_message(sddc_on_message_t on_message);
 
 /**
- * @brief Set callback function on receive MESSAGE request.
+ * @brief Set callback function on receive MESSAGE ACK.
  *
  * @param[in] on_message callback function
  *
@@ -246,7 +246,7 @@ int sddc_server_loop(uint16_t port);
 int sddc_send_update(const char *invite_data);
 
 /**
- * @brief Send message request to all EdgerOS which connected.
+ * @brief Broadcast message request to all EdgerOS which connected.
  *
  * @param[in] message Pointer to message data
  * @param[in] ack_req Does ack request
@@ -254,7 +254,19 @@ int sddc_send_update(const char *invite_data);
  *
  * @return Error number
  */
-int sddc_send_message(const char *message, sddc_bool_t ack_req, uint16_t *seqno);
+int sddc_broadcast_message(const char *message, sddc_bool_t ack_req, uint16_t *seqno);
+
+/**
+ * @brief Send message request to a specified EdgerOS which connected.
+ *
+ * @param[in] addr Pointer to EdgerOS network address
+ * @param[in] message Pointer to message data
+ * @param[in] ack_req Does ack request
+ * @param[out] seqno Seq number
+ *
+ * @return Error number
+ */
+int sddc_send_message(const struct sockaddr_in *addr, const char *message, sddc_bool_t ack_req, uint16_t *seqno);
 
 #ifdef __cplusplus
 }

@@ -76,7 +76,7 @@ static void iot_pi_display_set_pos(ms_uint8_t x, ms_uint8_t y)
     u8x8_y = y;
 }
 
-static void iot_pi_report_led_state(ms_bool_t *led_state)
+static void iot_pi_report_led_state(const struct sockaddr_in *addr, ms_bool_t *led_state)
 {
     cJSON *root;
     char *str;
@@ -96,7 +96,7 @@ static void iot_pi_report_led_state(ms_bool_t *led_state)
 
     str = cJSON_Print(root);
 
-    sddc_send_message(str, MS_FALSE, MS_NULL);
+    sddc_send_message(addr, str, MS_FALSE, MS_NULL);
 
     cJSON_free(str);
 
@@ -182,7 +182,7 @@ static ms_bool_t iot_pi_on_message(const struct sockaddr_in *addr, const char *m
 
     cJSON_Delete(root);
 
-    iot_pi_report_led_state(led_state);
+    iot_pi_report_led_state(addr, led_state);
     memcpy(led_state_bak, led_state, sizeof(led_state_bak));
 
     return MS_TRUE;
@@ -229,7 +229,7 @@ static ms_bool_t iot_pi_sddc_on_invite(const struct sockaddr_in *addr, const cha
 
 static ms_bool_t iot_pi_sddc_on_invite_end(const struct sockaddr_in *addr)
 {
-    iot_pi_report_led_state(MS_NULL);
+    iot_pi_report_led_state(addr, MS_NULL);
 
     return MS_TRUE;
 }
@@ -246,7 +246,7 @@ static char *iot_pi_create_report_data(void)
         cJSON_AddStringToObject(report, "type",   "device");
         cJSON_AddBoolToObject(report,   "excl",   MS_FALSE);
         cJSON_AddStringToObject(report, "desc",   "https://www.edgeros.com/iotpi");
-        cJSON_AddStringToObject(report, "model",  "0001");
+        cJSON_AddStringToObject(report, "model",  "1");
         cJSON_AddStringToObject(report, "vendor", "ACOINFO");
 
     /*
@@ -273,7 +273,7 @@ static char *iot_pi_create_invite_data(void)
         cJSON_AddStringToObject(report, "type",   "device");
         cJSON_AddBoolToObject(report,   "excl",   MS_FALSE);
         cJSON_AddStringToObject(report, "desc",   "https://www.edgeros.com/iotpi");
-        cJSON_AddStringToObject(report, "model",  "0001");
+        cJSON_AddStringToObject(report, "model",  "1");
         cJSON_AddStringToObject(report, "vendor", "ACOINFO");
 
     /*
@@ -325,7 +325,7 @@ static void iot_pi_key_thread(ms_ptr_t arg)
 
             str = cJSON_Print(root);
 
-            sddc_send_message(str, MS_FALSE, MS_NULL);
+            sddc_broadcast_message(str, MS_FALSE, MS_NULL);
 
             cJSON_free(str);
 

@@ -76,20 +76,20 @@ typedef struct {
     struct sockaddr_in addr;
 } sddc_edgeros_t;
 
-static uint8_t g_sddc_recv_buffer[SDDC_RECV_BUF_SIZE];
-static uint8_t g_sddc_send_buffer[SDDC_SEND_BUF_SIZE];
-static uint8_t g_sddc_uid[SDDC_UID_LEN];
-static const char *g_sddc_report_data;
-static const char *g_sddc_invite_data;
-static uint16_t g_sddc_seqno;
-static sddc_on_invite_t g_sddc_on_invite;
-static sddc_on_invite_end_t g_sddc_on_invite_end;
-static sddc_on_update_t g_sddc_on_update;
-static sddc_on_message_t g_sddc_on_message;
+static uint8_t               g_sddc_recv_buffer[SDDC_RECV_BUF_SIZE];
+static uint8_t               g_sddc_send_buffer[SDDC_SEND_BUF_SIZE];
+static uint8_t               g_sddc_uid[SDDC_UID_LEN];
+static const char *          g_sddc_report_data;
+static const char *          g_sddc_invite_data;
+static uint16_t              g_sddc_seqno;
+static sddc_on_invite_t      g_sddc_on_invite;
+static sddc_on_invite_end_t  g_sddc_on_invite_end;
+static sddc_on_update_t      g_sddc_on_update;
+static sddc_on_message_t     g_sddc_on_message;
 static sddc_on_message_ack_t g_sddc_on_message_ack;
+static int                   g_sddc_fd = -1;
+static sddc_mutex_t          g_sddc_lockid;
 static SDDC_LIST_HEAD(g_sddc_edgeros_list);
-static int g_sddc_fd = -1;
-static sddc_mutex_t g_sddc_lockid;
 
 static int sddc_build_packet(uint8_t type, uint8_t flags, uint16_t seqno, const char *data, size_t len)
 {
@@ -189,7 +189,27 @@ int sddc_send_update(const char *invite_data)
     return 0;
 }
 
-int sddc_send_message(const char *message, sddc_bool_t ack_req, uint16_t *seqno)
+int sddc_send_message(const struct sockaddr_in *addr, const char *message, sddc_bool_t ack_req, uint16_t *seqno)
+{
+    sddc_list_head_t *itervar;
+    int len;
+
+    sddc_mutex_lock(g_sddc_lockid);
+
+    if (seqno != NULL) {
+        *seqno = g_sddc_seqno;
+    }
+
+    len = sddc_build_packet(SDDC_TYPE_MESSAGE, ack_req ? SDDC_FLAG_REQ : 0, g_sddc_seqno++, message, strlen(message));
+
+    sendto(g_sddc_fd, g_sddc_send_buffer, len, 0, (const struct sockaddr *)addr, sizeof(struct sockaddr_in));
+
+    sddc_mutex_unlock(g_sddc_lockid);
+
+    return 0;
+}
+
+int sddc_broadcast_message(const char *message, sddc_bool_t ack_req, uint16_t *seqno)
 {
     sddc_edgeros_t *edgeros;
     sddc_list_head_t *itervar;
@@ -308,7 +328,8 @@ int sddc_server_loop(uint16_t port)
                     if ((len - sizeof(struct sddc_header)) >= packet->length) {
                         if (g_sddc_on_invite != NULL) {
                             if (g_sddc_on_invite(&cli_addr, (char *)g_sddc_recv_buffer + sizeof(struct sddc_header), packet->length)) {
-                                len = sddc_build_packet(SDDC_TYPE_INVITE, SDDC_FLAG_ACK | SDDC_FLAG_JOIN, packet->seqno, g_sddc_invite_data, strlen(g_sddc_invite_data));
+                                len = sddc_build_packet(SDDC_TYPE_INVITE, SDDC_FLAG_ACK | SDDC_FLAG_JOIN, packet->seqno,
+                                                        g_sddc_invite_data, strlen(g_sddc_invite_data));
                                 sendto(g_sddc_fd, g_sddc_send_buffer, len, 0, (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
 
                                 {
