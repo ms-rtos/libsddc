@@ -157,9 +157,9 @@ static ms_bool_t iot_pi_on_message(const struct sockaddr_in *addr, const char *m
 
     display = cJSON_GetObjectItem(root, "display");
     if (cJSON_IsObject(display)) {
-        cJSON *x_number, *y_number;
-        cJSON *msg;
-        ms_uint8_t x = 0, y = 0;
+        cJSON *x_number, *y_number, *clr_number;
+        cJSON *text;
+        ms_uint8_t x = 0, y = 0, clr = 0;
 
         x_number = cJSON_GetObjectItem(display, "x");
         y_number = cJSON_GetObjectItem(display, "y");
@@ -174,9 +174,20 @@ static ms_bool_t iot_pi_on_message(const struct sockaddr_in *addr, const char *m
 
         iot_pi_display_set_pos(x, y);
 
-        msg = cJSON_GetObjectItem(display, "msg");
-        if (cJSON_IsString(msg)) {
-            iot_pi_display_puts(msg->valuestring);
+        text = cJSON_GetObjectItem(display, "text");
+        if (cJSON_IsString(text)) {
+            iot_pi_display_puts(text->valuestring);
+
+        } else {
+            clr_number = cJSON_GetObjectItem(display, "clear");
+            if (cJSON_IsNumber(clr_number)) {
+                int i;
+
+                clr = (int)clr_number->valuedouble;
+                for (i = 0; i < clr; i++) {
+                    iot_pi_display_putch(' ');
+                }
+            }
         }
     }
 

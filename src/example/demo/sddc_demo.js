@@ -32,7 +32,7 @@ sddc.on('join', function(devid, info) {
     console.log('join: devid: ' + devid + ' info: ' + JSON.stringify(info));
     let s = {
         display: {
-            msg: 'message from edgeros!',
+            text: 'message from edgeros!',
             x: 0,
             y: 3
         },

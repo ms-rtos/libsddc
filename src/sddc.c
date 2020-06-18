@@ -191,7 +191,6 @@ int sddc_send_update(const char *invite_data)
 
 int sddc_send_message(const struct sockaddr_in *addr, const char *message, sddc_bool_t ack_req, uint16_t *seqno)
 {
-    sddc_list_head_t *itervar;
     int len;
 
     sddc_mutex_lock(g_sddc_lockid);
