@@ -299,13 +299,6 @@ static char *iot_pi_create_invite_data(void)
     return str;
 }
 
-/**
- * @brief LED thread.
- *
- * @param[in] arg Boot thread argument
- *
- * @return N/A
- */
 static void iot_pi_key_thread(ms_ptr_t arg)
 {
     fd_set rfds;
@@ -324,14 +317,26 @@ static void iot_pi_key_thread(ms_ptr_t arg)
 
             if (FD_ISSET(key1_fd, &rfds)) {
                 cJSON_AddBoolToObject(root, "key1", MS_TRUE);
+
+                ms_io_write(led1_fd, &led_state_bak[0], 1);
+                led_state_bak[0] = !led_state_bak[0];
+                cJSON_AddBoolToObject(root, "led1", led_state_bak[0]);
             }
 
             if (FD_ISSET(key2_fd, &rfds)) {
                 cJSON_AddBoolToObject(root, "key2", MS_TRUE);
+
+                ms_io_write(led2_fd, &led_state_bak[1], 1);
+                led_state_bak[1] = !led_state_bak[1];
+                cJSON_AddBoolToObject(root, "led2", led_state_bak[1]);
             }
 
             if (FD_ISSET(key3_fd, &rfds)) {
                 cJSON_AddBoolToObject(root, "key3", MS_TRUE);
+
+                ms_io_write(led3_fd, &led_state_bak[2], 1);
+                led_state_bak[2] = !led_state_bak[2];
+                cJSON_AddBoolToObject(root, "led3", led_state_bak[2]);
             }
 
             str = cJSON_Print(root);

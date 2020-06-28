@@ -111,48 +111,104 @@ static int sddc_build_packet(uint8_t type, uint8_t flags, uint16_t seqno, const 
     return sizeof(struct sddc_header) + len;
 }
 
+/**
+ * @brief Set callback function of on receive MESSAGE request.
+ *
+ * @param[in] on_message    callback function
+ *
+ * @return Error number
+ */
 int sddc_set_on_message(sddc_on_message_t on_message)
 {
     g_sddc_on_message = on_message;
     return 0;
 }
 
+/**
+ * @brief Set callback function of on receive MESSAGE ACK.
+ *
+ * @param[in] on_message    callback function
+ *
+ * @return Error number
+ */
 int sddc_set_on_message_ack(sddc_on_message_ack_t on_message_ack)
 {
     g_sddc_on_message_ack = on_message_ack;
     return 0;
 }
 
+/**
+ * @brief Set callback function of on receive INVITE request.
+ *
+ * @param[in] on_invite     callback function
+ *
+ * @return Error number
+ */
 int sddc_set_on_invite(sddc_on_invite_t on_invite)
 {
     g_sddc_on_invite = on_invite;
     return 0;
 }
 
+/**
+ * @brief Set callback function of after receive INVITE request.
+ *
+ * @param[in] on_invite_end callback function
+ *
+ * @return Error number
+ */
 int sddc_set_on_invite_end(sddc_on_invite_end_t on_invite_end)
 {
     g_sddc_on_invite_end = on_invite_end;
     return 0;
 }
 
+/**
+ * @brief Set callback function on receive UPDATE request.
+ *
+ * @param[in] on_update     callback function
+ *
+ * @return Error number
+ */
 int sddc_set_on_update(sddc_on_update_t on_update)
 {
     g_sddc_on_update = on_update;
     return 0;
 }
 
+/**
+ * @brief Set report data.
+ *
+ * @param[in] report_data   Pointer to report data
+ *
+ * @return Error number
+ */
 int sddc_set_report_data(const char *report_data)
 {
     g_sddc_report_data = report_data;
     return 0;
 }
 
+/**
+ * @brief Set report data.
+ *
+ * @param[in] report_data   Pointer to invite data
+ *
+ * @return Error number
+ */
 int sddc_set_invite_data(const char *invite_data)
 {
     g_sddc_invite_data = invite_data;
     return 0;
 }
 
+/**
+ * @brief Set device uniquely id.
+ *
+ * @param[in] mac_addr      Pointer to device mac address
+ *
+ * @return Error number
+ */
 int sddc_set_uid(const uint8_t *mac_addr)
 {
     g_sddc_uid[0] = mac_addr[0];
@@ -167,6 +223,13 @@ int sddc_set_uid(const uint8_t *mac_addr)
     return 0;
 }
 
+/**
+ * @brief Update invite data and send UPDATE request to all EdgerOS which connected.
+ *
+ * @param[in] invite_data   Pointer to new invite data
+ *
+ * @return Error number
+ */
 int sddc_send_update(const char *invite_data)
 {
     sddc_edgeros_t *edgeros;
@@ -189,6 +252,16 @@ int sddc_send_update(const char *invite_data)
     return 0;
 }
 
+/**
+ * @brief Send message request to a specified EdgerOS which connected.
+ *
+ * @param[in] addr          Pointer to EdgerOS network address
+ * @param[in] message       Pointer to message data
+ * @param[in] ack_req       Does ack request
+ * @param[out] seqno        Seq number
+ *
+ * @return Error number
+ */
 int sddc_send_message(const struct sockaddr_in *addr, const char *message, sddc_bool_t ack_req, uint16_t *seqno)
 {
     int len;
@@ -208,6 +281,15 @@ int sddc_send_message(const struct sockaddr_in *addr, const char *message, sddc_
     return 0;
 }
 
+/**
+ * @brief Broadcast message request to all EdgerOS which connected.
+ *
+ * @param[in] message       Pointer to message data
+ * @param[in] ack_req       Does ack request
+ * @param[out] seqno        Seq number
+ *
+ * @return Error number
+ */
 int sddc_broadcast_message(const char *message, sddc_bool_t ack_req, uint16_t *seqno)
 {
     sddc_edgeros_t *edgeros;
@@ -233,6 +315,13 @@ int sddc_broadcast_message(const char *message, sddc_bool_t ack_req, uint16_t *s
     return 0;
 }
 
+/**
+ * @brief Enter sddc server loop and run.
+ *
+ * @param[in] port          Listen port
+ *
+ * @return Error number
+ */
 int sddc_server_loop(uint16_t port)
 {
     struct sockaddr_in serv_addr, cli_addr;

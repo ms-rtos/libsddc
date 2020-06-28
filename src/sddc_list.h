@@ -39,10 +39,18 @@ sddc_list_head_t (name) = { &(name), &(name)}
  * Initialize a list head to an empty list
  */
 #define SDDC_INIT_LIST_HEAD(p) \
-    do { \
-        (p)->next = (p); \
-        (p)->prev = (p); \
+    do {                       \
+        (p)->next = (p);       \
+        (p)->prev = (p);       \
     } while (0)
+
+/*
+ * Test if the list is empty
+ */
+static inline sddc_bool_t sddc_list_is_empty(const sddc_list_head_t *entry)
+{
+    return ((entry->next == entry) ? SDDC_TRUE : SDDC_FALSE);
+}
 
 /*
  * Test if the node is the head of list
@@ -114,14 +122,6 @@ static inline void sddc_list_del_init(sddc_list_head_t *entry)
     sddc_list_del(entry);
     entry->next = entry;
     entry->prev = entry;
-}
-
-/*
- * Test if the list is empty
- */
-static inline sddc_bool_t sddc_list_is_empty(const sddc_list_head_t *entry)
-{
-    return ((entry->next == entry) ? SDDC_TRUE : SDDC_FALSE);
 }
 
 /*
