@@ -470,7 +470,7 @@ int main(int argc, char *argv[])
                      MS_NULL);
 
     /*
-     * Initial display
+     * Initialize display
      */
     iot_pi_display_init();
     iot_pi_display_set_pos(0, 0);

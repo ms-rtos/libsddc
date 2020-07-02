@@ -17,10 +17,6 @@
 extern "C" {
 #endif
 
-/**
- * @brief Doubly linked list.
- */
-
 #define SDDC_CONTAINER_OF(entry, type, member) \
     ((type *)(((unsigned long)(entry)) - (unsigned long)(&((type *)NULL)->member)))
 
@@ -36,16 +32,16 @@ typedef struct sddc_list_head {
 sddc_list_head_t (name) = { &(name), &(name)}
 
 /*
- * Initialize a list head to an empty list
+ * Initialize a specified list head to an empty list
  */
-#define SDDC_INIT_LIST_HEAD(p) \
+#define SDDC_LIST_INIT_HEAD(p) \
     do {                       \
         (p)->next = (p);       \
         (p)->prev = (p);       \
     } while (0)
 
 /*
- * Test if the list is empty
+ * Determine whether a specified list is empty
  */
 static inline sddc_bool_t sddc_list_is_empty(const sddc_list_head_t *entry)
 {
@@ -53,7 +49,7 @@ static inline sddc_bool_t sddc_list_is_empty(const sddc_list_head_t *entry)
 }
 
 /*
- * Test if the node is the head of list
+ * Determine whether a specified node is the head of list
  */
 static inline sddc_bool_t sddc_list_is_head(const sddc_list_head_t *entry, const sddc_list_head_t *list)
 {
@@ -61,7 +57,7 @@ static inline sddc_bool_t sddc_list_is_head(const sddc_list_head_t *entry, const
 }
 
 /*
- * Test if the node is the tail of list
+ * Determine whether a specified node is the tail of list
  */
 static inline sddc_bool_t sddc_list_is_tail(const sddc_list_head_t *entry, const sddc_list_head_t *list)
 {
@@ -69,7 +65,7 @@ static inline sddc_bool_t sddc_list_is_tail(const sddc_list_head_t *entry, const
 }
 
 /*
- * Test if the node is the only one node in list
+ * Determine whether a specified node is the only one node in list
  */
 static inline sddc_bool_t sddc_list_is_only_one(const sddc_list_head_t *entry, const sddc_list_head_t *list)
 {
@@ -77,7 +73,7 @@ static inline sddc_bool_t sddc_list_is_only_one(const sddc_list_head_t *entry, c
 }
 
 /*
- * Add an element to a list
+ * Add a specified node to a list
  */
 static inline void sddc_list_add(sddc_list_head_t *new_entry, sddc_list_head_t *list)
 {
@@ -90,7 +86,7 @@ static inline void sddc_list_add(sddc_list_head_t *new_entry, sddc_list_head_t *
 }
 
 /*
- * Add an element to the tail of a list
+ * Add a specified node to the tail of a list
  */
 static inline void sddc_list_add_tail(sddc_list_head_t *new_entry, sddc_list_head_t *list)
 {
@@ -103,7 +99,7 @@ static inline void sddc_list_add_tail(sddc_list_head_t *new_entry, sddc_list_hea
 }
 
 /*
- * Take an element out of its current list, without reinitializing the links.of the entry
+ * Take a specified node out of its current list, without reinitializing the links.of the entry
  */
 static inline void sddc_list_del(sddc_list_head_t * const entry)
 {
@@ -115,7 +111,7 @@ static inline void sddc_list_del(sddc_list_head_t * const entry)
 }
 
 /*
- * Take an element out of its current list, with reinitializing the links.of the entry
+ * Take a specified node out of its current list, with reinitializing the links.of the entry
  */
 static inline void sddc_list_del_init(sddc_list_head_t *entry)
 {
