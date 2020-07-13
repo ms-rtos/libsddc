@@ -15,9 +15,12 @@
 
 #include <ms_rtos.h>
 
-#define sddc_log    ms_log
+#define sddc_printf     ms_printf
 
-typedef ms_handle_t sddc_mutex_t;
+#define sddc_malloc     ms_malloc
+#define sddc_free       ms_free
+
+typedef ms_handle_t     sddc_mutex_t;
 
 static inline int sddc_mutex_create(sddc_mutex_t *mutex)
 {

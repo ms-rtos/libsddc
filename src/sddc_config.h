@@ -13,17 +13,20 @@
 #ifndef SDDC_CONFIG_H
 #define SDDC_CONFIG_H
 
-#define SDDC_PORT                   680U
-#define SDDC_RECV_BUF_SIZE          1024U
-#define SDDC_SEND_BUF_SIZE          1024U
+#define SDDC_CFG_PORT                   680U
+#define SDDC_CFG_RECV_BUF_SIZE          1024U
+#define SDDC_CFG_SEND_BUF_SIZE          1024U
 
-#define SDDC_NET_IMPL               "ms_esp_at_net"
+#define SDDC_CFG_NET_IMPL               "ms_esp_at_net"
 
-#define SDDC_COAP_BUF_SIZE          1024U
-#define SDDC_COAP_SCRATCH_RAW_SIZE  1024U
-#define SDDC_COAP_PORT              5683U
-#define SDDC_COAP_THREAD_PRIO       9U
-#define SDDC_COAP_THREAD_STK_SIZE   1024U
-#define SDDC_COAP_THREAD_TIME_SLICE 0U
+#define SDDC_CFG_MQUEUE_SIZE            6U
+#define SDDC_CFG_RETRIES_INTERVAL       500U /* MS */
+#define SDDC_CFG_EDGEROS_ALIVE          40U  /* RETRIES_INTERVAL */
+
+#define SDDC_CFG_DBG_EN                 1
+#define SDDC_CFG_WARN_EN                1
+#define SDDC_CFG_ERR_EN                 1
+#define SDDC_CFG_CRIT_EN                1
+#define SDDC_CFG_INFO_EN                1
 
 #endif /* SDDC_CONFIG_H */

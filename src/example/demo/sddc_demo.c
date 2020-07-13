@@ -76,7 +76,7 @@ static void iot_pi_display_set_pos(ms_uint8_t x, ms_uint8_t y)
     u8x8_y = y;
 }
 
-static void iot_pi_report_led_state(const struct sockaddr_in *addr, ms_bool_t *led_state)
+static void iot_pi_report_led_state(sddc_t *sddc, const uint8_t *uid, ms_bool_t *led_state)
 {
     cJSON *root;
     char *str;
@@ -96,14 +96,14 @@ static void iot_pi_report_led_state(const struct sockaddr_in *addr, ms_bool_t *l
 
     str = cJSON_Print(root);
 
-    sddc_send_message(addr, str, MS_FALSE, MS_NULL);
+    sddc_send_message(sddc, uid, str, strlen(str), 1, MS_FALSE, MS_NULL);
 
     cJSON_free(str);
 
     cJSON_Delete(root);
 }
 
-static ms_bool_t iot_pi_on_message(const struct sockaddr_in *addr, const char *message, ms_size_t len)
+static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(message);
     cJSON *led;
@@ -193,18 +193,28 @@ static ms_bool_t iot_pi_on_message(const struct sockaddr_in *addr, const char *m
 
     cJSON_Delete(root);
 
-    iot_pi_report_led_state(addr, led_state);
+    iot_pi_report_led_state(sddc, uid, led_state);
     memcpy(led_state_bak, led_state, sizeof(led_state_bak));
 
     return MS_TRUE;
 }
 
-static void iot_pi_on_message_ack(const struct sockaddr_in *addr, ms_uint16_t seqno)
+static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
 {
 
 }
 
-static ms_bool_t iot_pi_sddc_on_update(const struct sockaddr_in *addr, const char *update_data, ms_size_t len)
+static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
+{
+
+}
+
+static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
+{
+
+}
+
+static ms_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *update_data, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(update_data);
 
@@ -221,7 +231,7 @@ static ms_bool_t iot_pi_sddc_on_update(const struct sockaddr_in *addr, const cha
     return MS_TRUE;
 }
 
-static ms_bool_t iot_pi_sddc_on_invite(const struct sockaddr_in *addr, const char *invite_data, ms_size_t len)
+static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(invite_data);
 
@@ -238,9 +248,9 @@ static ms_bool_t iot_pi_sddc_on_invite(const struct sockaddr_in *addr, const cha
     return MS_TRUE;
 }
 
-static ms_bool_t iot_pi_sddc_on_invite_end(const struct sockaddr_in *addr)
+static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {
-    iot_pi_report_led_state(addr, MS_NULL);
+    iot_pi_report_led_state(sddc, uid, MS_NULL);
 
     return MS_TRUE;
 }
@@ -301,7 +311,8 @@ static char *iot_pi_create_invite_data(void)
 
 static void iot_pi_key_thread(ms_ptr_t arg)
 {
-    fd_set rfds;
+    fd_set  rfds;
+    sddc_t *sddc = arg;
 
     while (1) {
         FD_ZERO(&rfds);
@@ -341,7 +352,7 @@ static void iot_pi_key_thread(ms_ptr_t arg)
 
             str = cJSON_Print(root);
 
-            sddc_broadcast_message(str, MS_FALSE, MS_NULL);
+            sddc_broadcast_message(sddc, str, strlen(str), 1, MS_FALSE, MS_NULL);
 
             cJSON_free(str);
 
@@ -357,29 +368,37 @@ int main(int argc, char *argv[])
     int sockfd;
     char ip[sizeof("255.255.255.255")];
     struct sockaddr_in *psockaddrin = (struct sockaddr_in *)&(ifreq.ifr_addr);
+    sddc_t *sddc;
+    char *data;
 
-#ifdef SDDC_NET_IMPL
-    ms_net_impl_set(SDDC_NET_IMPL);
+#ifdef SDDC_CFG_NET_IMPL
+    ms_net_impl_set(SDDC_CFG_NET_IMPL);
 #endif
+
+    sddc = sddc_create(SDDC_CFG_PORT);
 
     /*
      * Set call backs
      */
-    sddc_set_on_message(iot_pi_on_message);
-    sddc_set_on_message_ack(iot_pi_on_message_ack);
-    sddc_set_on_invite(iot_pi_sddc_on_invite);
-    sddc_set_on_invite_end(iot_pi_sddc_on_invite_end);
-    sddc_set_on_update(iot_pi_sddc_on_update);
+    sddc_set_on_message(sddc, iot_pi_on_message);
+    sddc_set_on_message_ack(sddc, iot_pi_on_message_ack);
+    sddc_set_on_message_lost(sddc, iot_pi_on_message_lost);
+    sddc_set_on_invite(sddc, iot_pi_on_invite);
+    sddc_set_on_invite_end(sddc, iot_pi_on_invite_end);
+    sddc_set_on_update(sddc, iot_pi_on_update);
+    sddc_set_on_edgeros_lost(sddc, iot_pi_on_edgeros_lost);
 
     /*
      * Set report data
      */
-    sddc_set_report_data(iot_pi_create_report_data());
+    data = iot_pi_create_report_data();
+    sddc_set_report_data(sddc, data, strlen(data));
 
     /*
      * Set invite data
      */
-    sddc_set_invite_data(iot_pi_create_invite_data());
+    data = iot_pi_create_invite_data();
+    sddc_set_invite_data(sddc, data, strlen(data));
 
     /*
      * Get mac address
@@ -399,7 +418,7 @@ int main(int argc, char *argv[])
     /*
      * Set uid
      */
-    sddc_set_uid((const ms_uint8_t *)ifreq.ifr_hwaddr.sa_data);
+    sddc_set_uid(sddc, (const ms_uint8_t *)ifreq.ifr_hwaddr.sa_data);
 
     /*
      * Get ip address
@@ -462,7 +481,7 @@ int main(int argc, char *argv[])
      */
     ms_thread_create("t_key",
                      iot_pi_key_thread,
-                     MS_NULL,
+                     sddc,
                      2048U,
                      30U,
                      70U,
@@ -476,7 +495,13 @@ int main(int argc, char *argv[])
     iot_pi_display_set_pos(0, 0);
 
     /*
-     * SDDC server loop
+     * SDDC run
      */
-    return sddc_server_loop(SDDC_PORT);
+    while (1) {
+        sddc_run(sddc);
+    }
+
+    sddc_destroy(sddc);
+
+    return 0;
 }

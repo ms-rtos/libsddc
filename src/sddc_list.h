@@ -34,7 +34,7 @@ sddc_list_head_t (name) = { &(name), &(name)}
 /*
  * Initialize a specified list head to an empty list
  */
-#define SDDC_LIST_INIT_HEAD(p) \
+#define SDDC_LIST_HEAD_INIT(p) \
     do {                       \
         (p)->next = (p);       \
         (p)->prev = (p);       \
