@@ -83,7 +83,7 @@ static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
     return MS_TRUE;
 }
 
-static char *iot_pi_create_report_data(void)
+static char *iot_pi_report_data_create(void)
 {
     cJSON *root;
     cJSON *report;
@@ -110,7 +110,7 @@ static char *iot_pi_create_report_data(void)
     return str;
 }
 
-static char *iot_pi_create_invite_data(void)
+static char *iot_pi_invite_data_create(void)
 {
     cJSON *root;
     cJSON *report;
@@ -141,7 +141,6 @@ int main(int argc, char *argv[])
 {
     struct ifreq ifreq;
     int sockfd;
-    char ip[sizeof("255.255.255.255")];
     struct sockaddr_in *psockaddrin = (struct sockaddr_in *)&(ifreq.ifr_addr);
     sddc_t *sddc;
     char *data;
@@ -166,13 +165,13 @@ int main(int argc, char *argv[])
     /*
      * Set report data
      */
-    data = iot_pi_create_report_data();
+    data = iot_pi_report_data_create();
     sddc_set_report_data(sddc, data, strlen(data));
 
     /*
      * Set invite data
      */
-    data = iot_pi_create_invite_data();
+    data = iot_pi_invite_data_create();
     sddc_set_invite_data(sddc, data, strlen(data));
 
     /*
@@ -198,11 +197,15 @@ int main(int argc, char *argv[])
     /*
      * Get ip address
      */
-    ioctl(sockfd, SIOCGIFADDR, &ifreq);
+    if (ioctl(sockfd, SIOCGIFADDR, &ifreq) == 0) {
+        char ip[sizeof("255.255.255.255")];
 
-    inet_ntoa_r(psockaddrin->sin_addr, ip, sizeof(ip));
+        inet_ntoa_r(psockaddrin->sin_addr, ip, sizeof(ip));
 
-    ms_printf("IP addr: %s\n", ip);
+        ms_printf("IP addr: %s\n", ip);
+    } else {
+        ms_printf("Failed to get IP address, WiFi AP not online!\n");
+    }
 
     close(sockfd);
 
@@ -210,7 +213,11 @@ int main(int argc, char *argv[])
      * SDDC run
      */
     while (1) {
+        ms_printf("SDDC running...\n");
+
         sddc_run(sddc);
+
+        ms_printf("SDDC quit!\n");
     }
 
     sddc_destroy(sddc);

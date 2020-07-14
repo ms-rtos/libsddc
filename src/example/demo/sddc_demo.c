@@ -24,6 +24,8 @@ static int key1_fd;
 static int key2_fd;
 static int key3_fd;
 
+static int sockfd;
+
 static u8x8_t u8x8;                    // u8x8 object
 static ms_uint8_t u8x8_x, u8x8_y;      // current position on the screen
 static ms_bool_t led_state_bak[3];
@@ -70,13 +72,13 @@ static void iot_pi_display_puts(const char *s)
     }
 }
 
-static void iot_pi_display_set_pos(ms_uint8_t x, ms_uint8_t y)
+static void iot_pi_display_pos_set(ms_uint8_t x, ms_uint8_t y)
 {
     u8x8_x = x;
     u8x8_y = y;
 }
 
-static void iot_pi_report_led_state(sddc_t *sddc, const uint8_t *uid, ms_bool_t *led_state)
+static void iot_pi_led_state_report(sddc_t *sddc, const uint8_t *uid, ms_bool_t *led_state)
 {
     cJSON *root;
     char *str;
@@ -172,7 +174,7 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
             y = (int)y_number->valuedouble;
         }
 
-        iot_pi_display_set_pos(x, y);
+        iot_pi_display_pos_set(x, y);
 
         text = cJSON_GetObjectItem(display, "text");
         if (cJSON_IsString(text)) {
@@ -193,7 +195,7 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
 
     cJSON_Delete(root);
 
-    iot_pi_report_led_state(sddc, uid, led_state);
+    iot_pi_led_state_report(sddc, uid, led_state);
     memcpy(led_state_bak, led_state, sizeof(led_state_bak));
 
     return MS_TRUE;
@@ -250,12 +252,12 @@ static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *
 
 static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {
-    iot_pi_report_led_state(sddc, uid, MS_NULL);
+    iot_pi_led_state_report(sddc, uid, MS_NULL);
 
     return MS_TRUE;
 }
 
-static char *iot_pi_create_report_data(void)
+static char *iot_pi_report_data_create(void)
 {
     cJSON *root;
     cJSON *report;
@@ -282,7 +284,7 @@ static char *iot_pi_create_report_data(void)
     return str;
 }
 
-static char *iot_pi_create_invite_data(void)
+static char *iot_pi_invite_data_create(void)
 {
     cJSON *root;
     cJSON *report;
@@ -313,6 +315,8 @@ static void iot_pi_key_thread(ms_ptr_t arg)
 {
     fd_set  rfds;
     sddc_t *sddc = arg;
+    ms_uint8_t key1_press = 0;
+    ms_uint64_t key1_press_begin = 0;
 
     while (1) {
         FD_ZERO(&rfds);
@@ -327,6 +331,28 @@ static void iot_pi_key_thread(ms_ptr_t arg)
             root = cJSON_CreateObject();
 
             if (FD_ISSET(key1_fd, &rfds)) {
+                key1_press++;
+                if (key1_press == 1) {
+                    key1_press_begin = ms_time_get_ms();
+
+                } else if (key1_press == 3) {
+                    key1_press = 0;
+
+                    if ((ms_time_get_ms() - key1_press_begin) < 1000) {
+                        static struct ifreq ifreq;
+
+                        ifreq.ifr_flags = !ifreq.ifr_flags;
+
+                        if (ifreq.ifr_flags) {
+                            ms_printf("Start smart configure...\n");
+                        } else {
+                            ms_printf("Stop smart configure...\n");
+                        }
+                        ioctl(sockfd, SIOCSIFPFLAGS, &ifreq);
+                        continue;
+                    }
+                }
+
                 cJSON_AddBoolToObject(root, "key1", MS_TRUE);
 
                 ms_io_write(led1_fd, &led_state_bak[0], 1);
@@ -340,6 +366,8 @@ static void iot_pi_key_thread(ms_ptr_t arg)
                 ms_io_write(led2_fd, &led_state_bak[1], 1);
                 led_state_bak[1] = !led_state_bak[1];
                 cJSON_AddBoolToObject(root, "led2", led_state_bak[1]);
+
+                key1_press = 0;
             }
 
             if (FD_ISSET(key3_fd, &rfds)) {
@@ -348,6 +376,8 @@ static void iot_pi_key_thread(ms_ptr_t arg)
                 ms_io_write(led3_fd, &led_state_bak[2], 1);
                 led_state_bak[2] = !led_state_bak[2];
                 cJSON_AddBoolToObject(root, "led3", led_state_bak[2]);
+
+                key1_press = 0;
             }
 
             str = cJSON_Print(root);
@@ -361,15 +391,80 @@ static void iot_pi_key_thread(ms_ptr_t arg)
     }
 }
 
-int main(int argc, char *argv[])
+static int iot_pi_led_init(void)
 {
     ms_gpio_param_t param;
+
+    /*
+     * Open leds
+     */
+    led1_fd = ms_io_open("/dev/led1", O_WRONLY, 0666);
+    led2_fd = ms_io_open("/dev/led2", O_WRONLY, 0666);
+    led3_fd = ms_io_open("/dev/led3", O_WRONLY, 0666);
+
+    /*
+     * Set gpio output mode
+     */
+    param.mode  = MS_GPIO_MODE_OUTPUT_PP;
+    param.pull  = MS_GPIO_PULL_UP;
+    param.speed = MS_GPIO_SPEED_HIGH;
+    ms_io_ioctl(led1_fd, MS_GPIO_CMD_SET_PARAM, &param);
+    ms_io_ioctl(led2_fd, MS_GPIO_CMD_SET_PARAM, &param);
+    ms_io_ioctl(led3_fd, MS_GPIO_CMD_SET_PARAM, &param);
+
+    /*
+     * Read led state
+     */
+    ms_io_read(led1_fd, &led_state_bak[0], 1);
+    ms_io_read(led2_fd, &led_state_bak[1], 1);
+    ms_io_read(led3_fd, &led_state_bak[2], 1);
+
+    led_state_bak[0] = !led_state_bak[0];
+    led_state_bak[1] = !led_state_bak[1];
+    led_state_bak[2] = !led_state_bak[2];
+
+    return 0;
+}
+
+static int iot_pi_key_init(void)
+{
+    ms_gpio_param_t param;
+
+    /*
+     * Open keys
+     */
+    key1_fd = ms_io_open("/dev/key1", O_WRONLY, 0666);
+    key2_fd = ms_io_open("/dev/key2", O_WRONLY, 0666);
+    key3_fd = ms_io_open("/dev/key3", O_WRONLY, 0666);
+
+    /*
+     * Set gpio irq mode
+     */
+    param.mode  = MS_GPIO_MODE_IRQ_FALLING;
+    param.pull  = MS_GPIO_PULL_UP;
+    param.speed = MS_GPIO_SPEED_HIGH;
+    ms_io_ioctl(key1_fd, MS_GPIO_CMD_SET_PARAM, &param);
+    ms_io_ioctl(key2_fd, MS_GPIO_CMD_SET_PARAM, &param);
+    ms_io_ioctl(key3_fd, MS_GPIO_CMD_SET_PARAM, &param);
+
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
     struct ifreq ifreq;
-    int sockfd;
-    char ip[sizeof("255.255.255.255")];
     struct sockaddr_in *psockaddrin = (struct sockaddr_in *)&(ifreq.ifr_addr);
     sddc_t *sddc;
     char *data;
+
+    iot_pi_led_init();
+    iot_pi_key_init();
+
+    /*
+     * Initialize display
+     */
+    iot_pi_display_init();
+    iot_pi_display_pos_set(0, 0);
 
 #ifdef SDDC_CFG_NET_IMPL
     ms_net_impl_set(SDDC_CFG_NET_IMPL);
@@ -391,13 +486,13 @@ int main(int argc, char *argv[])
     /*
      * Set report data
      */
-    data = iot_pi_create_report_data();
+    data = iot_pi_report_data_create();
     sddc_set_report_data(sddc, data, strlen(data));
 
     /*
      * Set invite data
      */
-    data = iot_pi_create_invite_data();
+    data = iot_pi_invite_data_create();
     sddc_set_invite_data(sddc, data, strlen(data));
 
     /*
@@ -423,58 +518,15 @@ int main(int argc, char *argv[])
     /*
      * Get ip address
      */
-    ioctl(sockfd, SIOCGIFADDR, &ifreq);
+    if (ioctl(sockfd, SIOCGIFADDR, &ifreq) == 0) {
+        char ip[sizeof("255.255.255.255")];
 
-    inet_ntoa_r(psockaddrin->sin_addr, ip, sizeof(ip));
+        inet_ntoa_r(psockaddrin->sin_addr, ip, sizeof(ip));
 
-    ms_printf("IP addr: %s\n", ip);
-
-    close(sockfd);
-
-    /*
-     * Open leds
-     */
-    led1_fd = ms_io_open("/dev/led1", O_WRONLY, 0666);
-    led2_fd = ms_io_open("/dev/led2", O_WRONLY, 0666);
-    led3_fd = ms_io_open("/dev/led3", O_WRONLY, 0666);
-
-    /*
-     * Set gpio output mode
-     */
-    param.mode  = MS_GPIO_MODE_OUTPUT_PP;
-    param.pull  = MS_GPIO_PULL_UP;
-    param.speed = MS_GPIO_SPEED_HIGH;
-    ms_io_ioctl(led1_fd, MS_GPIO_CMD_SET_PARAM, &param);
-    ms_io_ioctl(led2_fd, MS_GPIO_CMD_SET_PARAM, &param);
-    ms_io_ioctl(led3_fd, MS_GPIO_CMD_SET_PARAM, &param);
-
-    /*
-     * Open keys
-     */
-    key1_fd = ms_io_open("/dev/key1", O_WRONLY, 0666);
-    key2_fd = ms_io_open("/dev/key2", O_WRONLY, 0666);
-    key3_fd = ms_io_open("/dev/key3", O_WRONLY, 0666);
-
-    /*
-     * Set gpio irq mode
-     */
-    param.mode  = MS_GPIO_MODE_IRQ_FALLING;
-    param.pull  = MS_GPIO_PULL_UP;
-    param.speed = MS_GPIO_SPEED_HIGH;
-    ms_io_ioctl(key1_fd, MS_GPIO_CMD_SET_PARAM, &param);
-    ms_io_ioctl(key2_fd, MS_GPIO_CMD_SET_PARAM, &param);
-    ms_io_ioctl(key3_fd, MS_GPIO_CMD_SET_PARAM, &param);
-
-    /*
-     * Read led state
-     */
-    ms_io_read(led1_fd, &led_state_bak[0], 1);
-    ms_io_read(led2_fd, &led_state_bak[1], 1);
-    ms_io_read(led3_fd, &led_state_bak[2], 1);
-
-    led_state_bak[0] = !led_state_bak[0];
-    led_state_bak[1] = !led_state_bak[1];
-    led_state_bak[2] = !led_state_bak[2];
+        ms_printf("IP addr: %s\n", ip);
+    } else {
+        ms_printf("Failed to get IP address, WiFi AP not online!\n");
+    }
 
     /*
      * Create keys scan thread
@@ -489,16 +541,14 @@ int main(int argc, char *argv[])
                      MS_NULL);
 
     /*
-     * Initialize display
-     */
-    iot_pi_display_init();
-    iot_pi_display_set_pos(0, 0);
-
-    /*
      * SDDC run
      */
     while (1) {
+        ms_printf("SDDC running...\n");
+
         sddc_run(sddc);
+
+        ms_printf("SDDC quit!\n");
     }
 
     sddc_destroy(sddc);
