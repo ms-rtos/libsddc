@@ -6,7 +6,7 @@
  *
  * File: sddc_config.h SDDC configuration.
  *
- * Author: Jiao.jinxing <jiaojixing@acoinfo.com>
+ * Author: Jiao.jinxing <jiaojinxing@acoinfo.com>
  *
  */
 

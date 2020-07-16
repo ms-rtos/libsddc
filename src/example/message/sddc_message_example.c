@@ -6,7 +6,7 @@
  *
  * File: sddc_message_example.c SDDC message server example.
  *
- * Author: Jiao.jinxing <jiaojixing@acoinfo.com>
+ * Author: Jiao.jinxing <jiaojinxing@acoinfo.com>
  *
  */
 

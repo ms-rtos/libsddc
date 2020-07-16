@@ -6,7 +6,7 @@
  *
  * File: sddc_demo.c SDDC demo.
  *
- * Author: Jiao.jinxing <jiaojixing@acoinfo.com>
+ * Author: Jiao.jinxing <jiaojinxing@acoinfo.com>
  *
  */
 
