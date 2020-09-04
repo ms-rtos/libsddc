@@ -320,7 +320,7 @@ int sddc_destroy(sddc_t *sddc)
     return_value_if_fail(sddc, -1);
 
     close(sddc->fd);
-    sddc_mutex_destroy(sddc->lockid);
+    sddc_mutex_destroy(&sddc->lockid);
     sddc_free(sddc);
 
     return 0;
@@ -360,7 +360,7 @@ sddc_t *sddc_create(uint16_t port)
     sddc->fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sddc->fd < 0) {
         SDDC_LOG_ERR("Failed to create socket!\n");
-        sddc_mutex_destroy(sddc->fd);
+        sddc_mutex_destroy(&sddc->lockid);
         sddc_free(sddc);
         return NULL;
     }
@@ -508,7 +508,7 @@ int sddc_run(sddc_t *sddc)
 
                 inet_ntoa_r(cli_addr.sin_addr, ip_str, sizeof(ip_str));
 
-                sddc_mutex_lock(sddc->lockid);
+                sddc_mutex_lock(&sddc->lockid);
 
                 /*
                  * Updated EdgerOS address info
@@ -686,7 +686,7 @@ int sddc_run(sddc_t *sddc)
                     break;
                 }
 
-                sddc_mutex_unlock(sddc->lockid);
+                sddc_mutex_unlock(&sddc->lockid);
             }
 
         } else if (ret == 0) {
@@ -694,7 +694,7 @@ int sddc_run(sddc_t *sddc)
             sddc_list_head_t *savevar;
             sddc_edgeros_t   *edgeros;
 
-            sddc_mutex_lock(sddc->lockid);
+            sddc_mutex_lock(&sddc->lockid);
 
             sddc_list_for_each_safe(itervar, savevar, &sddc->edgeros_list) {
                 edgeros = SDDC_CONTAINER_OF(itervar, sddc_edgeros_t, node);
@@ -735,7 +735,7 @@ int sddc_run(sddc_t *sddc)
                 }
             }
 
-            sddc_mutex_unlock(sddc->lockid);
+            sddc_mutex_unlock(&sddc->lockid);
 
         } else {
             break;
@@ -770,7 +770,7 @@ int sddc_send_message(sddc_t *sddc, const uint8_t *uid,
 
     return_value_if_fail(sddc && uid && payload && payload_len, -1);
 
-    sddc_mutex_lock(sddc->lockid);
+    sddc_mutex_lock(&sddc->lockid);
 
     edgeros = __sddc_edgeros_find(sddc, uid);
     goto_error_if_fail(edgeros != NULL);
@@ -838,7 +838,7 @@ __send_urgent:
     }
 
 error:
-    sddc_mutex_unlock(sddc->lockid);
+    sddc_mutex_unlock(&sddc->lockid);
 
     return ret;
 }
@@ -866,7 +866,7 @@ int sddc_broadcast_message(sddc_t *sddc,
 
     return_value_if_fail(sddc && payload && payload_len, -1);
 
-    sddc_mutex_lock(sddc->lockid);
+    sddc_mutex_lock(&sddc->lockid);
 
     sddc_list_for_each(itervar, &sddc->edgeros_list) {
         edgeros = SDDC_CONTAINER_OF(itervar, sddc_edgeros_t, node);
@@ -883,7 +883,7 @@ int sddc_broadcast_message(sddc_t *sddc,
         }
     }
 
-    sddc_mutex_unlock(sddc->lockid);
+    sddc_mutex_unlock(&sddc->lockid);
 
     return ret;
 }

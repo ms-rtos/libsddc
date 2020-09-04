@@ -338,7 +338,7 @@ static void iot_pi_key_thread(ms_ptr_t arg)
                 } else if (key1_press == 3) {
                     key1_press = 0;
 
-                    if ((ms_time_get_ms() - key1_press_begin) < 1000) {
+                    if ((ms_time_get_ms() - key1_press_begin) < 800) {
                         static struct ifreq ifreq;
 
                         ifreq.ifr_flags = !ifreq.ifr_flags;
@@ -399,8 +399,20 @@ static int iot_pi_led_init(void)
      * Open leds
      */
     led1_fd = ms_io_open("/dev/led1", O_WRONLY, 0666);
+    if (led1_fd < 0) {
+        ms_printf("Failed to open /dev/led1\n");
+        return -1;
+    }
     led2_fd = ms_io_open("/dev/led2", O_WRONLY, 0666);
+    if (led2_fd < 0) {
+        ms_printf("Failed to open /dev/led2\n");
+        return -1;
+    }
     led3_fd = ms_io_open("/dev/led3", O_WRONLY, 0666);
+    if (led3_fd < 0) {
+        ms_printf("Failed to open /dev/led3\n");
+        return -1;
+    }
 
     /*
      * Set gpio output mode
@@ -434,8 +446,20 @@ static int iot_pi_key_init(void)
      * Open keys
      */
     key1_fd = ms_io_open("/dev/key1", O_WRONLY, 0666);
+    if (key1_fd < 0) {
+        ms_printf("Failed to open /dev/key1\n");
+        return -1;
+    }
     key2_fd = ms_io_open("/dev/key2", O_WRONLY, 0666);
+    if (key2_fd < 0) {
+        ms_printf("Failed to open /dev/key2\n");
+        return -1;
+    }
     key3_fd = ms_io_open("/dev/key3", O_WRONLY, 0666);
+    if (key3_fd < 0) {
+        ms_printf("Failed to open /dev/key3\n");
+        return -1;
+    }
 
     /*
      * Set gpio irq mode
@@ -457,8 +481,13 @@ int main(int argc, char *argv[])
     sddc_t *sddc;
     char *data;
 
-    iot_pi_led_init();
-    iot_pi_key_init();
+    if (iot_pi_led_init() < 0) {
+        return -1;
+    }
+
+    if (iot_pi_key_init() < 0) {
+        return -1;
+    }
 
     /*
      * Initialize display

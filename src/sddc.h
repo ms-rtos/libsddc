@@ -83,6 +83,8 @@ typedef uint8_t sddc_bool_t;
 
 #ifdef __MS_RTOS__
 #include "sddc_msrtos.h"
+#elif defined(SYLIXOS)
+#include "sddc_posix.h"
 #else
 #error "Please porting to you RTOS!"
 #endif

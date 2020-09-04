@@ -4,7 +4,7 @@
  *
  * Detailed license information can be found in the LICENSE file.
  *
- * File: sddc_msrtos.c SDDC MS-RTOS porting.
+ * File: sddc_msrtos.h SDDC MS-RTOS porting.
  *
  * Author: Jiao.jinxing <jiaojinxing@acoinfo.com>
  *
@@ -27,19 +27,19 @@ static inline int sddc_mutex_create(sddc_mutex_t *mutex)
     return ms_mutex_create("sddc_lock", MS_WAIT_TYPE_PRIO, mutex);
 }
 
-static inline int sddc_mutex_destroy(sddc_mutex_t mutex)
+static inline int sddc_mutex_destroy(sddc_mutex_t *mutex)
 {
-    return ms_mutex_destroy(mutex);
+    return ms_mutex_destroy(*mutex);
 }
 
-static inline int sddc_mutex_lock(sddc_mutex_t mutex)
+static inline int sddc_mutex_lock(sddc_mutex_t *mutex)
 {
-    return ms_mutex_lock(mutex, MS_TIMEOUT_FOREVER);
+    return ms_mutex_lock(*mutex, MS_TIMEOUT_FOREVER);
 }
 
-static inline int sddc_mutex_unlock(sddc_mutex_t mutex)
+static inline int sddc_mutex_unlock(sddc_mutex_t *mutex)
 {
-    return ms_mutex_unlock(mutex);
+    return ms_mutex_unlock(*mutex);
 }
 
 #endif /* SDDC_MSRTOS_H */
