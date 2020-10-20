@@ -90,7 +90,41 @@ typedef uint8_t sddc_bool_t;
 #endif
 
 /*
- * Report Data(UTF8 JSON format data):
+ * SDDC Protocol Header:
+ *
+ *  0               1               2               3
+ *  0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * | MAGIC |  VER  |  TYPE |U|J|R|A|        SEQ / ACK Number       |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                     Uniquely ID 0 - 3                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                     Uniquely ID 4 - 7                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |  security |C|S|    reserved   |         Data Length           |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *                |
+ *                \- Device Only!
+ *
+ * MAGIC : Must be: 0x5
+ * VER   : Must be: 0x1
+ * FLAGS : R: ACK Required, A: ACK, J: Join (Agree to invite and join the network)
+ *
+ * TYPE                DIRECTION         R  DATA                    DESC
+ * 0x00: Discover      B  -> E, E  -> D  -  No data                 Broadcast or Unicast Discover: monitor, edger, device
+ * 0x01: Report        B <-  E, E <-  D  -  UTF8 JSON format data   Responding discover or report
+ * 0x02: Update        B <-> E, E <-> D  R  UTF8 JSON format data   I changed.
+ *
+ * 0x03: Invite        B  -> E, E  -> D  R  UTF8 JSON format data   Invite target device
+ * 0x03: Invite ACK    B <-  E, E <-  D  -  UTF8 JSON format data   Invite reply (With own server information)
+ *
+ * 0x04: Ping          B  -> E, E  -> D  R  No data                 Check whether the target device is online
+ * 0x04: Ping ACK      B <-  E, E <-  D  -  No data                 Reply Ping request.
+ *
+ * 0x05: Message       B  -> E, E  -> D  *  UTF8 JSON format data   Send a message to the target
+ * 0x05: Message ACK   B <-  E, E <-  D  -  No data                 Reply to sender
+ *
+ * Report Data:
  *  {
  *      "report":{
  *          "name":<String>, "Printer", "Patch panel", "Air conditioning"...
@@ -99,13 +133,14 @@ typedef uint8_t sddc_bool_t;
  *          "desc":<String>, (Device Documents URL)
  *          "model":<String>, (Product Model)
  *          "vendor":<String> (Manufacturer Name)
+ *          "sn":<String>, (Product Serial Numbber optional)
  *      }
  *      "extension":{
  *          ...
  *      }
  *  }
  *
- * Update and Invite Data(UTF8 JSON format data):
+ * Update and Invite Data:
  *  {
  *      "report":{
  *          "name":<String>, "Printer", "Patch panel", "Air conditioning"...
@@ -131,10 +166,18 @@ typedef uint8_t sddc_bool_t;
  *      }
  *  }
  *
- * Message Data(UTF8 JSON format data):
+ * Message Data:
  *  {
  *      ...
  *  }
+ *
+ *  TYPE        SECURITY DATA
+ *  DISCOVER    NO
+ *  REPORT      NO
+ *  UPDATE      YES
+ *  INVITE      YES
+ *  PING        NO
+ *  MESSAGE     YES
  */
 
 /* Header uid length */
@@ -223,6 +266,16 @@ typedef void (*sddc_on_edgeros_lost_t)(sddc_t *sddc, const uint8_t *uid);
 int sddc_set_uid(sddc_t *sddc, const uint8_t *mac_addr);
 
 /**
+ * @brief Set device token.
+ *
+ * @param[in] sddc          Pointer to SDDC
+ * @param[in] token         Pointer to token string
+ *
+ * @return Error number
+ */
+int sddc_set_token(sddc_t *sddc, const char *token);
+
+/**
  * @brief Set callback function of on receive MESSAGE request.
  *
  * @param[in] sddc          Pointer to SDDC
@@ -307,7 +360,7 @@ int sddc_set_report_data(sddc_t *sddc, const char *report_data, size_t len);
  * @brief Set INVITE data.
  *
  * @param[in] sddc          Pointer to SDDC
- * @param[in] report_data   Pointer to INVITE data
+ * @param[in] invite_data   Pointer to INVITE data
  * @param[in] len           The length to INVITE data
  *
  * @return Error number
@@ -355,7 +408,7 @@ int sddc_run(sddc_t *sddc);
  * @return Error number
  */
 int sddc_send_message(sddc_t *sddc, const uint8_t *uid,
-                      const char *payload, size_t payload_len,
+                      const void *payload, size_t payload_len,
                       uint8_t retries, sddc_bool_t urgent,
                       uint16_t *seqno);
 
@@ -372,7 +425,7 @@ int sddc_send_message(sddc_t *sddc, const uint8_t *uid,
  * @return Error number
  */
 int sddc_broadcast_message(sddc_t *sddc,
-                           const char *payload, size_t payload_len,
+                           const void *payload, size_t payload_len,
                            uint8_t retries, sddc_bool_t urgent,
                            uint16_t *seqno);
 

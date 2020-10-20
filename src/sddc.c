@@ -18,20 +18,29 @@
 #include "sddc.h"
 #include "sddc_list.h"
 
+#if SDDC_CFG_SECURITY_EN > 0
+#include <mbedtls/pk.h>
+#include <mbedtls/md.h>
+#include <mbedtls/error.h>
+#include <mbedtls/cipher.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
+#endif
+
 /* Header magic and version */
-#define SDDC_MAGIC          0x5
-#define SDDC_VERSION        0x1
+#define SDDC_MAGIC              0x5
+#define SDDC_VERSION            0x1
 
 /* Header types */
-#define SDDC_TYPE_DISCOVER  0x00
-#define SDDC_TYPE_REPORT    0x01
-#define SDDC_TYPE_UPDATE    0x02
-#define SDDC_TYPE_INVITE    0x03
-#define SDDC_TYPE_PING      0x04
-#define SDDC_TYPE_MESSAGE   0x05
+#define SDDC_TYPE_DISCOVER      0x00
+#define SDDC_TYPE_REPORT        0x01
+#define SDDC_TYPE_UPDATE        0x02
+#define SDDC_TYPE_INVITE        0x03
+#define SDDC_TYPE_PING          0x04
+#define SDDC_TYPE_MESSAGE       0x05
 
 /* Header type set and get */
-#define SDDC_SET_TYPE(h, type) \
+#define SDDC_SET_TYPE(h, type)  \
         ((h)->flags_type) &= 0xe0; \
         ((h)->flags_type) |= (type)
 
@@ -39,10 +48,16 @@
         ((h)->flags_type & 0x1f)
 
 /* Header flags */
-#define SDDC_FLAG_ACK       0x80
-#define SDDC_FLAG_REQ       0x40
-#define SDDC_FLAG_JOIN      0x20
-#define SDDC_FLAG_URGENT    0x10
+#define SDDC_FLAG_NONE          0x00
+#define SDDC_FLAG_ACK           0x80
+#define SDDC_FLAG_REQ           0x40
+#define SDDC_FLAG_JOIN          0x20
+#define SDDC_FLAG_URGENT        0x10
+
+/* Header security flags */
+#define SDDC_SEC_FLAG_NONE      0x00
+#define SDDC_SEC_FLAG_SUPPORT   0x80
+#define SDDC_SEC_FLAG_CRYPTO    0x40
 
 /* Buffer to hex char */
 #define SDDC_BUF_TO_HEX_CHAR(digit) \
@@ -66,7 +81,8 @@ typedef struct {
     uint8_t             flags_type;
     uint16_t            seqno;
     uint8_t             uid[SDDC_UID_LEN];
-    uint16_t            reserved;
+    uint8_t             security;
+    uint8_t             reserved;
     uint16_t            length;
 } sddc_header_t;
 
@@ -92,25 +108,36 @@ typedef struct {
 
 /* SDDC */
 struct sddc_context {
-    uint8_t                 recv_buf[SDDC_CFG_RECV_BUF_SIZE];
-    uint8_t                 send_buf[SDDC_CFG_RECV_BUF_SIZE];
-    uint8_t                 uid[SDDC_UID_LEN];
-    const char *            report_data;
-    size_t                  report_data_len;
-    const char *            invite_data;
-    size_t                  invite_data_len;
-    sddc_on_invite_t        on_invite;
-    sddc_on_invite_end_t    on_invite_end;
-    sddc_on_update_t        on_update;
-    sddc_on_message_t       on_message;
-    sddc_on_message_ack_t   on_message_ack;
-    sddc_on_message_lost_t  on_message_lost;
-    sddc_on_edgeros_lost_t  on_edgeros_lost;
-    sddc_list_head_t        edgeros_list;
-    int                     fd;
-    sddc_mutex_t            lockid;
-    uint16_t                seqno;
-    uint16_t                port;
+    uint8_t                         recv_buf[SDDC_CFG_RECV_BUF_SIZE];
+    uint8_t                         send_buf[SDDC_CFG_SEND_BUF_SIZE];
+    uint8_t                         uid[SDDC_UID_LEN];
+    const char *                    token;
+    const char *                    report_data;
+    size_t                          report_data_len;
+    const char *                    invite_data;
+    size_t                          invite_data_len;
+    sddc_on_invite_t                on_invite;
+    sddc_on_invite_end_t            on_invite_end;
+    sddc_on_update_t                on_update;
+    sddc_on_message_t               on_message;
+    sddc_on_message_ack_t           on_message_ack;
+    sddc_on_message_lost_t          on_message_lost;
+    sddc_on_edgeros_lost_t          on_edgeros_lost;
+    sddc_list_head_t                edgeros_list;
+    int                             fd;
+    sddc_mutex_t                    lockid;
+    uint16_t                        seqno;
+    uint16_t                        port;
+
+#if SDDC_CFG_SECURITY_EN > 0
+    uint8_t                         decypt_buf[SDDC_CFG_RECV_BUF_SIZE - sizeof(sddc_header_t) + 16];
+    mbedtls_cipher_context_t        encypt_cipher_ctx;
+    mbedtls_cipher_context_t        decypt_cipher_ctx;
+    sddc_bool_t                     security_en;
+    const mbedtls_cipher_info_t    *cipher_info;
+    uint8_t                         key[16];
+    uint8_t                         iv[16];
+#endif
 };
 
 #define SDDC_PACKET_PAYLOAD(packet)     ((char *)(packet) + sizeof(sddc_header_t))
@@ -126,6 +153,119 @@ struct sddc_context {
         SDDC_LOG_ERR("%s:%d " #p "\n", __FUNCTION__, __LINE__); \
         goto error;                                             \
     }
+
+#if SDDC_CFG_SECURITY_EN > 0
+
+static int __sddc_gen_key(const char *token, uint8_t *key, uint8_t *iv)
+{
+    mbedtls_md_context_t  md;
+    uint8_t               hash[16];
+    size_t                token_len = strlen(token);
+
+    mbedtls_md_init(&md);
+    mbedtls_md_setup(&md, mbedtls_md_info_from_string("MD5"), 0);
+
+    mbedtls_md_starts(&md);
+    mbedtls_md_update(&md, (const uint8_t *)token, token_len);
+    mbedtls_md_finish(&md, hash);
+    memcpy(key, hash, 16);
+
+    mbedtls_md_starts(&md);
+    mbedtls_md_update(&md, hash, 16);
+    mbedtls_md_update(&md, (const uint8_t *)token, token_len);
+    mbedtls_md_finish(&md, hash);
+    memcpy(iv, hash, 16);
+
+    mbedtls_md_free(&md);
+
+    return 0;
+}
+
+/**
+ * @brief Set device token.
+ *
+ * @param[in] sddc          Pointer to SDDC
+ * @param[in] token         Pointer to token string
+ *
+ * @return Error number
+ */
+int sddc_set_token(sddc_t *sddc, const char *token)
+{
+    return_value_if_fail(sddc && token, -1);
+
+    __sddc_gen_key(token, sddc->key, sddc->iv);
+
+    sddc->cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_CBC);
+
+    sddc->security_en = SDDC_TRUE;
+
+    return 0;
+}
+
+static int __sddc_decrypt(sddc_t *sddc, const void *data, size_t len, void *output, size_t *olen)
+{
+    int ret;
+    size_t ulen;
+    size_t flen;
+
+    *olen = 0;
+
+    return_value_if_fail(sddc->security_en, -1);
+
+    mbedtls_cipher_init(&sddc->decypt_cipher_ctx);
+
+    mbedtls_cipher_setup(&sddc->decypt_cipher_ctx, sddc->cipher_info);
+
+    mbedtls_cipher_set_iv(&sddc->decypt_cipher_ctx, sddc->iv, sizeof(sddc->iv));
+
+    mbedtls_cipher_setkey(&sddc->decypt_cipher_ctx, sddc->key, sizeof(sddc->key) * 8, MBEDTLS_DECRYPT);
+
+    ret = mbedtls_cipher_update(&sddc->decypt_cipher_ctx, data, len, output, &ulen);
+    return_value_if_fail(ret == 0, -1);
+
+    ret = mbedtls_cipher_finish(&sddc->decypt_cipher_ctx, (uint8_t *)output + ulen, &flen);
+
+    return_value_if_fail(ret == 0, -1);
+
+    mbedtls_cipher_free(&sddc->decypt_cipher_ctx);
+
+    *olen = ulen + flen;
+
+    return 0;
+}
+
+static int __sddc_encrypt(sddc_t *sddc, const void *data, size_t len, void *output, size_t *olen)
+{
+    int ret;
+    size_t ulen;
+    size_t flen;
+
+    *olen = 0;
+
+    return_value_if_fail(sddc->security_en, -1);
+
+    mbedtls_cipher_init(&sddc->encypt_cipher_ctx);
+
+    mbedtls_cipher_setup(&sddc->encypt_cipher_ctx, sddc->cipher_info);
+
+    mbedtls_cipher_set_iv(&sddc->encypt_cipher_ctx, sddc->iv, sizeof(sddc->iv));
+
+    mbedtls_cipher_setkey(&sddc->encypt_cipher_ctx, sddc->key, sizeof(sddc->key) * 8, MBEDTLS_ENCRYPT);
+
+    ret = mbedtls_cipher_update(&sddc->encypt_cipher_ctx, data, len, output, &ulen);
+    return_value_if_fail(ret == 0, -1);
+
+    ret = mbedtls_cipher_finish(&sddc->encypt_cipher_ctx, (uint8_t *)output + ulen, &flen);
+    return_value_if_fail(ret == 0, -1);
+
+    mbedtls_cipher_free(&sddc->encypt_cipher_ctx);
+
+    *olen = ulen + flen;
+
+    return 0;
+}
+
+#endif
 
 /**
  * @brief Set device uniquely id.
@@ -293,7 +433,7 @@ int sddc_set_report_data(sddc_t *sddc, const char *report_data, size_t len)
  * @brief Set INVITE data.
  *
  * @param[in] sddc          Pointer to SDDC
- * @param[in] report_data   Pointer to INVITE data
+ * @param[in] invite_data   Pointer to INVITE data
  * @param[in] len           The length to INVITE data
  *
  * @return Error number
@@ -302,8 +442,20 @@ int sddc_set_invite_data(sddc_t *sddc, const char *invite_data, size_t len)
 {
     return_value_if_fail(sddc && invite_data && len, -1);
 
-    sddc->invite_data     = invite_data;
-    sddc->invite_data_len = len;
+#if SDDC_CFG_SECURITY_EN > 0
+    if (sddc->security_en) {
+        sddc->invite_data = sddc_malloc(len + 16);
+        return_value_if_fail(sddc->invite_data, -1);
+
+        return __sddc_encrypt(sddc, invite_data, len,
+                              (void *)sddc->invite_data, &sddc->invite_data_len);
+
+    } else
+#endif
+    {
+        sddc->invite_data     = invite_data;
+        sddc->invite_data_len = len;
+    }
 
     return 0;
 }
@@ -318,6 +470,12 @@ int sddc_set_invite_data(sddc_t *sddc, const char *invite_data, size_t len)
 int sddc_destroy(sddc_t *sddc)
 {
     return_value_if_fail(sddc, -1);
+
+#if SDDC_CFG_SECURITY_EN > 0
+    if (sddc->security_en) {
+        sddc_free((void *)sddc->invite_data);
+    }
+#endif
 
     close(sddc->fd);
     sddc_mutex_destroy(&sddc->lockid);
@@ -379,7 +537,8 @@ sddc_t *sddc_create(uint16_t port)
     return sddc;
 }
 
-static ssize_t __sddc_build_packet(sddc_t *sddc, uint8_t *packet, uint8_t type, uint8_t flags, uint16_t seqno, const char *payload, size_t payload_len)
+static ssize_t __sddc_build_packet(sddc_t *sddc, uint8_t *packet, uint8_t type, uint8_t flags, uint8_t security_flag,
+                                   uint16_t seqno, const void *payload, size_t payload_len)
 {
     sddc_header_t *header = (sddc_header_t *)packet;
 
@@ -388,11 +547,17 @@ static ssize_t __sddc_build_packet(sddc_t *sddc, uint8_t *packet, uint8_t type, 
     SDDC_SET_TYPE(header, type);
     header->flags_type |= flags;
 
+#if SDDC_CFG_SECURITY_EN > 0
+    if (sddc->security_en) {
+        header->security = security_flag | SDDC_SEC_FLAG_SUPPORT;
+    }
+#endif
+
     header->seqno  = htons(seqno);
     header->length = htons(payload_len);
     memcpy(header->uid, sddc->uid, sizeof(header->uid));
 
-    if (payload_len > 0) {
+    if ((payload_len > 0) && ((unsigned long)payload != ((unsigned long)packet + sizeof(sddc_header_t)))) {
         memcpy(packet + sizeof(sddc_header_t), payload, payload_len);
     }
 
@@ -502,6 +667,9 @@ int sddc_run(sddc_t *sddc)
                 sddc_header_t  *header = (sddc_header_t *)sddc->recv_buf;
                 char            ip_str[IP4ADDR_STRLEN_MAX];
                 sddc_edgeros_t *edgeros;
+                size_t          payload_len;
+                void           *payload;
+                int             unpack_ret;
 
                 header->seqno  = ntohs(header->seqno);
                 header->length = ntohs(header->length);
@@ -524,7 +692,10 @@ int sddc_run(sddc_t *sddc)
                          * Build PING respond
                          */
                         len = __sddc_build_packet(sddc, sddc->send_buf,
-                                                  SDDC_TYPE_PING, SDDC_FLAG_ACK, header->seqno,
+                                                  SDDC_TYPE_PING,
+                                                  SDDC_FLAG_ACK,
+                                                  SDDC_SEC_FLAG_NONE,
+                                                  header->seqno,
                                                   NULL, 0);
 
                         /*
@@ -545,7 +716,10 @@ int sddc_run(sddc_t *sddc)
                          * Build REPORT
                          */
                         len = __sddc_build_packet(sddc, sddc->send_buf,
-                                                  SDDC_TYPE_REPORT, 0, sddc->seqno++,
+                                                  SDDC_TYPE_REPORT,
+                                                  SDDC_FLAG_NONE,
+                                                  SDDC_SEC_FLAG_NONE,
+                                                  sddc->seqno++,
                                                   sddc->report_data, sddc->report_data_len);
 
                         /*
@@ -562,12 +736,28 @@ int sddc_run(sddc_t *sddc)
 
                         if ((len - sizeof(sddc_header_t)) >= header->length) {
                             if (sddc->on_update != NULL) {
-                                if (sddc->on_update(sddc, header->uid, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length)) {
+#if SDDC_CFG_SECURITY_EN > 0
+                                if (header->security & SDDC_SEC_FLAG_CRYPTO) {
+                                    unpack_ret = __sddc_decrypt(sddc, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length,
+                                                                sddc->decypt_buf, &payload_len);
+                                    payload    = sddc->decypt_buf;
+                                } else
+#endif
+                                {
+                                    payload     = SDDC_PACKET_PAYLOAD(sddc->recv_buf);
+                                    payload_len = header->length;
+                                    unpack_ret  = 0;
+                                }
+
+                                if ((unpack_ret == 0) && sddc->on_update(sddc, header->uid, payload, payload_len)) {
                                     /*
                                      * Build update respond
                                      */
                                     len = __sddc_build_packet(sddc, sddc->send_buf,
-                                                              SDDC_TYPE_UPDATE, SDDC_FLAG_ACK, header->seqno,
+                                                              SDDC_TYPE_UPDATE,
+                                                              SDDC_FLAG_ACK,
+                                                              SDDC_SEC_FLAG_NONE,
+                                                              header->seqno,
                                                               NULL, 0);
 
                                     /*
@@ -590,12 +780,32 @@ int sddc_run(sddc_t *sddc)
                         SDDC_LOG_DBG("Receive invite request from: %s.\n", ip_str);
                         if ((len - sizeof(sddc_header_t)) >= header->length) {
                             if (sddc->on_invite != NULL) {
-                                if (sddc->on_invite(sddc, header->uid, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length)) {
+#if SDDC_CFG_SECURITY_EN > 0
+                                if (header->security & SDDC_SEC_FLAG_CRYPTO) {
+                                    unpack_ret = __sddc_decrypt(sddc, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length,
+                                                                sddc->decypt_buf, &payload_len);
+                                    payload    = sddc->decypt_buf;
+                                } else
+#endif
+                                {
+                                    payload     = SDDC_PACKET_PAYLOAD(sddc->recv_buf);
+                                    payload_len = header->length;
+                                    unpack_ret  = 0;
+                                }
+
+                                if ((unpack_ret == 0) && sddc->on_invite(sddc, header->uid, payload, payload_len)) {
                                     /*
                                      * Build INVITE respond
                                      */
                                     len = __sddc_build_packet(sddc, sddc->send_buf,
-                                                              SDDC_TYPE_INVITE, SDDC_FLAG_ACK | SDDC_FLAG_JOIN, header->seqno,
+                                                              SDDC_TYPE_INVITE,
+                                                              SDDC_FLAG_ACK | SDDC_FLAG_JOIN,
+#if SDDC_CFG_SECURITY_EN > 0
+                                                              sddc->security_en ? SDDC_SEC_FLAG_CRYPTO : SDDC_SEC_FLAG_NONE,
+#else
+                                                              SDDC_SEC_FLAG_NONE,
+#endif
+                                                              header->seqno,
                                                               sddc->invite_data, sddc->invite_data_len);
 
                                     /*
@@ -608,6 +818,23 @@ int sddc_run(sddc_t *sddc)
                                      * Call after send INVITE respond
                                      */
                                     __sddc_after_invite_respond(sddc, edgeros, header->uid, &cli_addr);
+
+                                } else {
+                                    /*
+                                     * Build REFUSE respond
+                                     */
+                                    len = __sddc_build_packet(sddc, sddc->send_buf,
+                                                              SDDC_TYPE_INVITE,
+                                                              SDDC_FLAG_ACK,
+                                                              SDDC_SEC_FLAG_NONE,
+                                                              header->seqno,
+                                                              NULL, 0);
+
+                                    /*
+                                     * Send REFUSE respond to EdgerOS
+                                     */
+                                    sendto(sddc->fd, sddc->send_buf, len, 0,
+                                           (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
                                 }
                             }
                         } else {                                            /* Payload length error */
@@ -647,13 +874,29 @@ int sddc_run(sddc_t *sddc)
 
                             if ((len - sizeof(sddc_header_t)) >= header->length) {
                                 if (sddc->on_message != NULL) {
-                                    if (sddc->on_message(sddc, edgeros->uid, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length)) {
+#if SDDC_CFG_SECURITY_EN > 0
+                                    if (header->security & SDDC_SEC_FLAG_CRYPTO) {
+                                        unpack_ret = __sddc_decrypt(sddc, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length,
+                                                                    sddc->decypt_buf, &payload_len);
+                                        payload    = sddc->decypt_buf;
+                                    } else
+#endif
+                                    {
+                                        payload     = SDDC_PACKET_PAYLOAD(sddc->recv_buf);
+                                        payload_len = header->length;
+                                        unpack_ret  = 0;
+                                    }
+
+                                    if ((unpack_ret == 0) && sddc->on_message(sddc, edgeros->uid, payload, payload_len)) {
                                         if (header->flags_type & SDDC_FLAG_REQ) {
                                             /*
                                              * Build MESSAGE ACK
                                              */
                                             len = __sddc_build_packet(sddc, sddc->send_buf,
-                                                                      SDDC_TYPE_MESSAGE, SDDC_FLAG_ACK, header->seqno,
+                                                                      SDDC_TYPE_MESSAGE,
+                                                                      SDDC_FLAG_ACK,
+                                                                      SDDC_SEC_FLAG_NONE,
+                                                                      header->seqno,
                                                                       NULL, 0);
 
                                             /*
@@ -759,12 +1002,13 @@ int sddc_run(sddc_t *sddc)
  * @return Error number
  */
 int sddc_send_message(sddc_t *sddc, const uint8_t *uid,
-                      const char *payload, size_t payload_len,
+                      const void *payload, size_t payload_len,
                       uint8_t retries, sddc_bool_t urgent,
                       uint16_t *seqno)
 {
     sddc_edgeros_t *edgeros;
     uint8_t flag;
+    uint8_t security_flag = SDDC_SEC_FLAG_NONE;
     int len;
     int ret = -1;
 
@@ -787,8 +1031,19 @@ int sddc_send_message(sddc_t *sddc, const uint8_t *uid,
 
     if ((retries == 0) && (urgent || (edgeros->mqueue_len == 0))) {
 __send_urgent:
+#if SDDC_CFG_SECURITY_EN > 0
+        if (sddc->security_en) {
+            __sddc_encrypt(sddc, payload, payload_len, sddc->send_buf + sizeof(sddc_header_t), &payload_len);
+            payload = sddc->send_buf + sizeof(sddc_header_t);
+            security_flag |= SDDC_SEC_FLAG_CRYPTO;
+        }
+#endif
+
         len = __sddc_build_packet(sddc, sddc->send_buf,
-                                  SDDC_TYPE_MESSAGE, flag, sddc->seqno++,
+                                  SDDC_TYPE_MESSAGE,
+                                  flag,
+                                  security_flag,
+                                  sddc->seqno++,
                                   payload, payload_len);
 
         if (sendto(sddc->fd, sddc->send_buf, len, 0,
@@ -799,16 +1054,29 @@ __send_urgent:
         sddc_message_t *message = NULL;
 
         if (edgeros->mqueue_len < SDDC_CFG_MQUEUE_SIZE) {
-            message = sddc_malloc(sizeof(sddc_message_t) + sizeof(sddc_header_t) + payload_len);
+            message = sddc_malloc(sizeof(sddc_message_t) + sizeof(sddc_header_t) + payload_len
+#if SDDC_CFG_SECURITY_EN > 0
+                                  + (sddc->security_en ? 16 : 0)
+#endif
+                                 );
 
             if (message != NULL) {
                 message->edgeros = edgeros;
                 message->retries = retries;
                 message->seqno   = sddc->seqno;
 
+#if SDDC_CFG_SECURITY_EN > 0
+                if (sddc->security_en) {
+                    __sddc_encrypt(sddc, payload, payload_len, message->packet + sizeof(sddc_header_t), &payload_len);
+                    payload = message->packet + sizeof(sddc_header_t);
+                    security_flag |= SDDC_SEC_FLAG_CRYPTO;
+                }
+#endif
+
                 message->packet_len = __sddc_build_packet(sddc, message->packet,
                                                           SDDC_TYPE_MESSAGE,
                                                           flag,
+                                                          security_flag,
                                                           sddc->seqno++,
                                                           payload, payload_len);
 
@@ -856,7 +1124,7 @@ error:
  * @return Error number
  */
 int sddc_broadcast_message(sddc_t *sddc,
-                           const char *payload, size_t payload_len,
+                           const void *payload, size_t payload_len,
                            uint8_t retries, sddc_bool_t urgent,
                            uint16_t *seqno)
 {

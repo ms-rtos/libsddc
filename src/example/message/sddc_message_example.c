@@ -50,32 +50,46 @@ static ms_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *
 {
     cJSON *root = cJSON_Parse(udpate_data);
 
-    /*
-     * Parse here
-     */
+    if (root) {
+        /*
+         * Parse here
+         */
 
-    char *str = cJSON_Print(root);
-    ms_printf("iot_pi_on_update: %s\n", str);
-    cJSON_free(str);
-    cJSON_Delete(root);
+        char *str = cJSON_Print(root);
 
-    return MS_TRUE;
+        ms_printf("iot_pi_on_update: %s\n", str);
+
+        cJSON_free(str);
+
+        cJSON_Delete(root);
+
+        return MS_TRUE;
+    } else {
+        return MS_FALSE;
+    }
 }
 
 static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(invite_data);
 
-    /*
-     * Parse here
-     */
+    if (root) {
+        /*
+         * Parse here
+         */
 
-    char *str = cJSON_Print(root);
-    ms_printf("iot_pi_on_invite: %s\n", str);
-    cJSON_free(str);
-    cJSON_Delete(root);
+        char *str = cJSON_Print(root);
 
-    return MS_TRUE;
+        ms_printf("iot_pi_on_invite: %s\n", str);
+
+        cJSON_free(str);
+
+        cJSON_Delete(root);
+
+        return MS_TRUE;
+    } else {
+        return MS_FALSE;
+    }
 }
 
 static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
@@ -161,6 +175,11 @@ int main(int argc, char *argv[])
     sddc_set_on_invite_end(sddc, iot_pi_on_invite_end);
     sddc_set_on_update(sddc, iot_pi_on_update);
     sddc_set_on_edgeros_lost(sddc, iot_pi_on_edgeros_lost);
+
+    /*
+     * Set token
+     */
+    sddc_set_token(sddc, "1234567890");
 
     /*
      * Set report data

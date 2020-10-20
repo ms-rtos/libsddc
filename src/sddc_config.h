@@ -29,4 +29,6 @@
 #define SDDC_CFG_CRIT_EN                1
 #define SDDC_CFG_INFO_EN                1
 
+#define SDDC_CFG_SECURITY_EN            1
+
 #endif /* SDDC_CONFIG_H */

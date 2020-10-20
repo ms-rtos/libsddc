@@ -52,11 +52,12 @@ LOCAL_DSYMBOL :=
 #*********************************************************************************************************
 # Depend library (eg. LOCAL_DEPEND_LIB := -la LOCAL_DEPEND_LIB_PATH := -L"Your library search path")
 #*********************************************************************************************************
-LOCAL_DEPEND_LIB      := -lsddc -lcjson -lu8g2
+LOCAL_DEPEND_LIB      := -lsddc -lcjson -lu8g2 -lmbedtls -lmbedx509 -lmbedcrypto 
 LOCAL_DEPEND_LIB_PATH := \
 -L"$(MSRTOS_BASE_PATH)/sddc/$(OUTDIR)" \
 -L"$(MSRTOS_BASE_PATH)/cJSON/$(OUTDIR)" \
--L"$(MSRTOS_BASE_PATH)/u8g2/$(OUTDIR)"
+-L"$(MSRTOS_BASE_PATH)/u8g2/$(OUTDIR)" \
+-L"$(MSRTOS_BASE_PATH)/mbedtls/$(OUTDIR)"
 
 #*********************************************************************************************************
 # C++ config
