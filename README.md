@@ -3,57 +3,57 @@
 
 EdgerOS smart device discovery & control protocol.
 
-## IoT Pi SDDC åè®®
+## IoT Pi SDDC Ğ­Òé
 
-IoT Pi å®ç°äº† EdgerOS çš„ SDDC åè®®ï¼Œå…è®¸å¤šä¸ª EdgerOS åŒæ—¶è¿æ¥ï¼Œä¸€ä¸ª EdgerOS è¿æ¥åˆ° IoT Pi åï¼Œå³å¯æ§åˆ¶ IoT Piï¼Œä¹Ÿä¼šæ”¶åˆ° IoT Pi ä¸»åŠ¨ä¸ŠæŠ¥çš„çŠ¶æ€ä¿¡æ¯ï¼ˆå¦‚æŒ‰é”®æŒ‰ä¸‹ã€LED äº®ç­ï¼‰ã€‚
+IoT Pi ÊµÏÖÁË EdgerOS µÄ SDDC Ğ­Òé£¬ÔÊĞí¶à¸ö EdgerOS Í¬Ê±Á¬½Ó£¬Ò»¸ö EdgerOS Á¬½Óµ½ IoT Pi ºó£¬¼´¿É¿ØÖÆ IoT Pi£¬Ò²»áÊÕµ½ IoT Pi Ö÷¶¯ÉÏ±¨µÄ×´Ì¬ĞÅÏ¢£¨Èç°´¼ü°´ÏÂ¡¢LED ÁÁÃğ£©¡£
 
-EdgerOS è¿æ¥ IoT Pi åï¼ŒIoT Pi ä¼šä¸»åŠ¨ä¸ŠæŠ¥å½“å‰çš„ LED çŠ¶æ€ä¿¡æ¯ï¼š
-
-```js
-{
-    led1: false, // led1 ç­
-    led2: true,  // led2 äº®
-    led3: false, // led3 ç­
-};
-```
-
-å¦‚æœ IoT Pi çš„ LED çŠ¶æ€è¢«ä¸€ä¸ª EdgerOS ä¿®æ”¹äº†ï¼Œåˆ™å…¶å®ƒ EdgerOS å°†æ”¶åˆ° IoT Pi ä¸»åŠ¨ä¸ŠæŠ¥çš„ LED çŠ¶æ€ä¿¡æ¯ï¼š
+EdgerOS Á¬½Ó IoT Pi ºó£¬IoT Pi »áÖ÷¶¯ÉÏ±¨µ±Ç°µÄ LED ×´Ì¬ĞÅÏ¢£º
 
 ```js
 {
-    led1: false, // led1 ç­
-    led2: true,  // led2 äº®
-    led3: false, // led3 ç­
+    led1: false, // led1 Ãğ
+    led2: true,  // led2 ÁÁ
+    led3: false, // led3 Ãğ
 };
 ```
 
-å½“ IoT Pi çš„æŒ‰é”®è¢«æŒ‰ä¸‹æ—¶ï¼ŒIoT Pi ä¼šå°†æŒ‰é”®å¯¹åº”çš„ LED äº®ç­çŠ¶æ€åè½¬ï¼ŒåŒæ—¶ä¼šä¸»åŠ¨ä¸ŠæŠ¥ä¸€ä¸ª KEY çŠ¶æ€ä¿¡æ¯ç»™æ‰€æœ‰è¿æ¥çš„ EdgerOSï¼š
+Èç¹û IoT Pi µÄ LED ×´Ì¬±»Ò»¸ö EdgerOS ĞŞ¸ÄÁË£¬ÔòÆäËü EdgerOS ½«ÊÕµ½ IoT Pi Ö÷¶¯ÉÏ±¨µÄ LED ×´Ì¬ĞÅÏ¢£º
 
-å‡è®¾ key2 æŒ‰é”®æŒ‰ä¸‹ï¼Œå°†æ”¶åˆ°ï¼š
 ```js
 {
-    key2: true, // key2 æŒ‰ä¸‹äº†ä¸€æ¬¡
+    led1: false, // led1 Ãğ
+    led2: true,  // led2 ÁÁ
+    led3: false, // led3 Ãğ
 };
 ```
 
-å‡è®¾ä¸‰ä¸ªæŒ‰é”®æŒ‰ä¸‹ï¼Œå°†æ”¶åˆ°ï¼š 
+µ± IoT Pi µÄ°´¼ü±»°´ÏÂÊ±£¬IoT Pi »á½«°´¼ü¶ÔÓ¦µÄ LED ÁÁÃğ×´Ì¬·´×ª£¬Í¬Ê±»áÖ÷¶¯ÉÏ±¨Ò»¸ö KEY ×´Ì¬ĞÅÏ¢¸øËùÓĞÁ¬½ÓµÄ EdgerOS£º
+
+¼ÙÉè key2 °´¼ü°´ÏÂ£¬½«ÊÕµ½£º
 ```js
 {
-    key1: true, // key1 æŒ‰ä¸‹äº†ä¸€æ¬¡
-    key2: true, // key2 æŒ‰ä¸‹äº†ä¸€æ¬¡
-    key3: true, // key3 æŒ‰ä¸‹äº†ä¸€æ¬¡
+    key2: true, // key2 °´ÏÂÁËÒ»´Î
 };
 ```
 
-æ²¡æœ‰æŒ‰ä¸‹çš„æŒ‰é”®ï¼Œäº‹ä»¶ä¸ä¼šä¸ŠæŠ¥ã€‚
+¼ÙÉèÈı¸ö°´¼ü°´ÏÂ£¬½«ÊÕµ½£º 
+```js
+{
+    key1: true, // key1 °´ÏÂÁËÒ»´Î
+    key2: true, // key2 °´ÏÂÁËÒ»´Î
+    key3: true, // key3 °´ÏÂÁËÒ»´Î
+};
+```
 
-EdgerOS æ§åˆ¶ IoT Pi ç¤ºä¾‹:
+Ã»ÓĞ°´ÏÂµÄ°´¼ü£¬ÊÂ¼ş²»»áÉÏ±¨¡£
+
+EdgerOS ¿ØÖÆ IoT Pi Ê¾Àı:
 
 ```js
     let s = {
-        led1: false, // led1 ç­
-        led2: true,  // led2 äº®
-        led3: false, // led3 ç­
+        led1: false, // led1 Ãğ
+        led2: true,  // led2 ÁÁ
+        led3: false, // led3 Ãğ
     };
     sddc.send(devid, s);
 ```

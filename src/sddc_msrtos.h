@@ -20,6 +20,8 @@
 #define sddc_malloc     ms_malloc
 #define sddc_free       ms_free
 
+#define sddc_sleep      ms_thread_sleep_s
+
 typedef ms_handle_t     sddc_mutex_t;
 
 static inline int sddc_mutex_create(sddc_mutex_t *mutex)

@@ -820,6 +820,8 @@ int sddc_run(sddc_t *sddc)
                                     __sddc_after_invite_respond(sddc, edgeros, header->uid, &cli_addr);
 
                                 } else {
+                                    sddc_sleep(1);
+
                                     /*
                                      * Build REFUSE respond
                                      */

@@ -22,6 +22,8 @@
 #define sddc_malloc     malloc
 #define sddc_free       free
 
+#define sddc_sleep      sleep
+
 typedef pthread_mutex_t sddc_mutex_t;
 
 static inline int sddc_mutex_create(sddc_mutex_t *mutex)
