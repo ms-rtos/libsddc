@@ -179,7 +179,9 @@ int main(int argc, char *argv[])
     /*
      * Set token
      */
+#if SDDC_CFG_SECURITY_EN > 0
     sddc_set_token(sddc, "1234567890");
+#endif
 
     /*
      * Set report data
