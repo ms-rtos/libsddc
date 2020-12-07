@@ -642,14 +642,15 @@ static int __sddc_after_invite_respond(sddc_t *sddc, sddc_edgeros_t *edgeros, co
  */
 int sddc_run(sddc_t *sddc)
 {
+    fd_set  rfds;
+
     return_value_if_fail(sddc, -1);
+
+    FD_ZERO(&rfds);
 
     while (1) {
         struct timeval tv;
-        fd_set         rfds;
         int            ret;
-
-        FD_ZERO(&rfds);
 
         FD_SET(sddc->fd, &rfds);
 
