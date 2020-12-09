@@ -14,7 +14,10 @@
 #include "sddc.h"
 #include "cJSON.h"
 
-static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, ms_size_t len)
+/*
+ * handle MESSAGE
+ */
+static sddc_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, size_t len)
 {
     cJSON *root = cJSON_Parse(message);
 
@@ -27,26 +30,37 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
     cJSON_free(str);
     cJSON_Delete(root);
 
-    return MS_TRUE;
+    return SDDC_TRUE;
 }
 
-static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
+/*
+ * handle MESSAGE ACK
+ */
+static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
 
 }
 
-
-static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
+/*
+ * handle MESSAGE lost
+ */
+static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
 
 }
 
+/*
+ * handle EdgerOS lost
+ */
 static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
 {
 
 }
 
-static ms_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *udpate_data, ms_size_t len)
+/*
+ * handle UPDATE
+ */
+static sddc_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *udpate_data, size_t len)
 {
     cJSON *root = cJSON_Parse(udpate_data);
 
@@ -63,13 +77,16 @@ static ms_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *
 
         cJSON_Delete(root);
 
-        return MS_TRUE;
+        return SDDC_TRUE;
     } else {
-        return MS_FALSE;
+        return SDDC_FALSE;
     }
 }
 
-static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, ms_size_t len)
+/*
+ * handle INVITE
+ */
+static sddc_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, size_t len)
 {
     cJSON *root = cJSON_Parse(invite_data);
 
@@ -86,17 +103,23 @@ static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *
 
         cJSON_Delete(root);
 
-        return MS_TRUE;
+        return SDDC_TRUE;
     } else {
-        return MS_FALSE;
+        return SDDC_FALSE;
     }
 }
 
-static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
+/*
+ * handle the end of INVITE
+ */
+static sddc_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {
-    return MS_TRUE;
+    return SDDC_TRUE;
 }
 
+/*
+ * Create REPORT data
+ */
 static char *iot_pi_report_data_create(void)
 {
     cJSON *root;
@@ -124,6 +147,9 @@ static char *iot_pi_report_data_create(void)
     return str;
 }
 
+/*
+ * Create INVITE data
+ */
 static char *iot_pi_invite_data_create(void)
 {
     cJSON *root;
@@ -159,10 +185,16 @@ int main(int argc, char *argv[])
     sddc_t *sddc;
     char *data;
 
+    /*
+     * Set network implement 
+     */
 #ifdef SDDC_CFG_NET_IMPL
     ms_net_impl_set(SDDC_CFG_NET_IMPL);
 #endif
 
+    /*
+     * Create SDDC
+     */
     sddc = sddc_create(SDDC_CFG_PORT);
 
     /*
@@ -216,7 +248,7 @@ int main(int argc, char *argv[])
     sddc_set_uid(sddc, (const ms_uint8_t *)ifreq.ifr_hwaddr.sa_data);
 
     /*
-     * Get ip address
+     * Get and print ip address
      */
     if (ioctl(sockfd, SIOCGIFADDR, &ifreq) == 0) {
         char ip[sizeof("255.255.255.255")];
@@ -241,6 +273,9 @@ int main(int argc, char *argv[])
         ms_printf("SDDC quit!\n");
     }
 
+    /*
+     * Destroy SDDC
+     */
     sddc_destroy(sddc);
 
     return 0;

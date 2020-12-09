@@ -30,6 +30,9 @@ static u8x8_t u8x8;                    // u8x8 object
 static ms_uint8_t u8x8_x, u8x8_y;      // current position on the screen
 static ms_bool_t led_state_bak[3];
 
+/*
+ * Initialize IoT Pi display
+ */
 static void iot_pi_display_init(void)
 {
     ms_u8x8_i2c_dev_set("/dev/i2c1");
@@ -43,6 +46,9 @@ static void iot_pi_display_init(void)
     u8x8_y = 0;
 }
 
+/*
+ * IoT Pi display putch
+ */
 static void iot_pi_display_putch(ms_uint8_t c)
 {
     if (u8x8_x >= u8x8_GetCols(&u8x8)) {
@@ -57,6 +63,9 @@ static void iot_pi_display_putch(ms_uint8_t c)
     u8x8_x++;
 }
 
+/*
+ * IoT Pi display puts
+ */
 static void iot_pi_display_puts(const char *s)
 {
     while (*s != '\0') {
@@ -72,12 +81,18 @@ static void iot_pi_display_puts(const char *s)
     }
 }
 
+/*
+ * IoT Pi display set position
+ */
 static void iot_pi_display_pos_set(ms_uint8_t x, ms_uint8_t y)
 {
     u8x8_x = x;
     u8x8_y = y;
 }
 
+/*
+ * Report IoT Pi led state
+ */
 static void iot_pi_led_state_report(sddc_t *sddc, const uint8_t *uid, ms_bool_t *led_state)
 {
     cJSON *root;
@@ -105,6 +120,9 @@ static void iot_pi_led_state_report(sddc_t *sddc, const uint8_t *uid, ms_bool_t 
     cJSON_Delete(root);
 }
 
+/*
+ * Handle MESSAGE
+ */
 static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(message);
@@ -201,21 +219,33 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
     return MS_TRUE;
 }
 
+/*
+ * Handle MESSAGE ACK
+ */
 static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
 {
 
 }
 
+/*
+ * Handle MESSAGE lost
+ */
 static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
 {
 
 }
 
+/*
+ * Handle EdgerOS lost
+ */
 static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
 {
 
 }
 
+/*
+ * Handle UPDATE
+ */
 static ms_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *update_data, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(update_data);
@@ -239,6 +269,9 @@ static ms_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *
     }
 }
 
+/*
+ * Handle INVITE
+ */
 static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(invite_data);
@@ -262,6 +295,9 @@ static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *
     }
 }
 
+/*
+ * handle the end of INVITE
+ */
 static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {
     iot_pi_led_state_report(sddc, uid, MS_NULL);
@@ -269,6 +305,9 @@ static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
     return MS_TRUE;
 }
 
+/*
+ * Create REPORT data
+ */
 static char *iot_pi_report_data_create(void)
 {
     cJSON *root;
@@ -296,6 +335,9 @@ static char *iot_pi_report_data_create(void)
     return str;
 }
 
+/*
+ * Create INVITE data
+ */
 static char *iot_pi_invite_data_create(void)
 {
     cJSON *root;
@@ -323,6 +365,9 @@ static char *iot_pi_invite_data_create(void)
     return str;
 }
 
+/*
+ * IoT Pi key scan thread
+ */
 static void iot_pi_key_thread(ms_ptr_t arg)
 {
     fd_set  rfds;
@@ -403,6 +448,9 @@ static void iot_pi_key_thread(ms_ptr_t arg)
     }
 }
 
+/*
+ * Initialize IoT Pi led
+ */
 static int iot_pi_led_init(void)
 {
     ms_gpio_param_t param;
@@ -450,6 +498,9 @@ static int iot_pi_led_init(void)
     return 0;
 }
 
+/*
+ * Initialize IoT Pi key
+ */
 static int iot_pi_key_init(void)
 {
     ms_gpio_param_t param;
@@ -493,16 +544,22 @@ int main(int argc, char *argv[])
     sddc_t *sddc;
     char *data;
 
+    /*
+     * Initialize IoT Pi led
+     */
     if (iot_pi_led_init() < 0) {
         return -1;
     }
 
+    /*
+     * Initialize IoT Pi key
+     */
     if (iot_pi_key_init() < 0) {
         return -1;
     }
 
     /*
-     * Initialize display
+     * Initialize IoT Pi display
      */
     iot_pi_display_init();
     iot_pi_display_pos_set(0, 0);
@@ -511,6 +568,9 @@ int main(int argc, char *argv[])
     ms_net_impl_set(SDDC_CFG_NET_IMPL);
 #endif
 
+    /*
+     * Create SDDC
+     */
     sddc = sddc_create(SDDC_CFG_PORT);
 
     /*
@@ -564,7 +624,7 @@ int main(int argc, char *argv[])
     sddc_set_uid(sddc, (const ms_uint8_t *)ifreq.ifr_hwaddr.sa_data);
 
     /*
-     * Get ip address
+     * Get and print ip address
      */
     if (ioctl(sockfd, SIOCGIFADDR, &ifreq) == 0) {
         char ip[sizeof("255.255.255.255")];
@@ -599,6 +659,9 @@ int main(int argc, char *argv[])
         ms_printf("SDDC quit!\n");
     }
 
+    /*
+     * Destroy SDDC
+     */
     sddc_destroy(sddc);
 
     return 0;

@@ -1,59 +1,32 @@
 
-# SDDC
+# libsddc
 
-EdgerOS smart device discovery & control protocol.
+IoT 端设备和传感器设备能过 WiFi、LoRa、ZigBee 等无线通信技术连接到 EdgerOS。
+
+针对 WiFi 设备，入网时 EdgerOS 提供 SmartConfig 技术支持，可以免密加入 WiFi 网络，同时 EdgerOS 推荐使用 SDDC（Smart Device Discovery & Control Protocol）协议，SDDC 协议是 EdgerOS 定义的一套智能设备发现和控制协议，SDDC 实现了以下功能：
+
+- EdgerOS 发现设备
+- EdgerOS 邀请设备加网
+- 设备加入和退出 EdgerOS
+- EdgerOS 维持设备 Online 状态
+- EdgerOS 与设备间的双向数据通信，数据可加密，支持带有消息重传和确认的可靠通信方式
+
+`libsddc` 是 SDDC 协议的 C 语言版参考实现，目前支持 MS-RTOS （翼辉开发的物联网微型安全操作系统）和所有符合 POSIX 标准的嵌入式操作系统（如知名的国产大型实时操作系统 SylixOS 和鸿蒙 HarmonyOS）。
+
+## 应用编程接口
+[libsddc API](doc/API.md)
 
 ## IoT Pi SDDC 协议
+[IoT Pi SDDC 协议](doc/IOTPI.md)
 
-IoT Pi 实现了 EdgerOS 的 SDDC 协议，允许多个 EdgerOS 同时连接，一个 EdgerOS 连接到 IoT Pi 后，即可控制 IoT Pi，也会收到 IoT Pi 主动上报的状态信息（如按键按下、LED 亮灭）。
+## 移植手册
+[移植手册](doc/PORTING.md)
 
-EdgerOS 连接 IoT Pi 后，IoT Pi 会主动上报当前的 LED 状态信息：
+## 版本
+v1.0.0
 
-```js
-{
-    led1: false, // led1 灭
-    led2: true,  // led2 亮
-    led3: false, // led3 灭
-};
-```
+## 开源协议
+Apache-2.0 
 
-如果 IoT Pi 的 LED 状态被一个 EdgerOS 修改了，则其它 EdgerOS 将收到 IoT Pi 主动上报的 LED 状态信息：
-
-```js
-{
-    led1: false, // led1 灭
-    led2: true,  // led2 亮
-    led3: false, // led3 灭
-};
-```
-
-当 IoT Pi 的按键被按下时，IoT Pi 会将按键对应的 LED 亮灭状态反转，同时会主动上报一个 KEY 状态信息给所有连接的 EdgerOS：
-
-假设 key2 按键按下，将收到：
-```js
-{
-    key2: true, // key2 按下了一次
-};
-```
-
-假设三个按键按下，将收到： 
-```js
-{
-    key1: true, // key1 按下了一次
-    key2: true, // key2 按下了一次
-    key3: true, // key3 按下了一次
-};
-```
-
-没有按下的按键，事件不会上报。
-
-EdgerOS 控制 IoT Pi 示例:
-
-```js
-    let s = {
-        led1: false, // led1 灭
-        led2: true,  // led2 亮
-        led3: false, // led3 灭
-    };
-    sddc.send(devid, s);
-```
+## TODO
+- 移植到运行 FreeRTOS 的 ESP8266/ESP32 wifi 模块
