@@ -565,7 +565,7 @@ int main(int argc, char *argv[])
     iot_pi_display_pos_set(0, 0);
 
 #ifdef SDDC_CFG_NET_IMPL
-    ms_net_impl_set(SDDC_CFG_NET_IMPL);
+    ms_net_set_impl(SDDC_CFG_NET_IMPL);
 #endif
 
     /*

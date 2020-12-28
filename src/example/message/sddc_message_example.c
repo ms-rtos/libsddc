@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
      * Set network implement 
      */
 #ifdef SDDC_CFG_NET_IMPL
-    ms_net_impl_set(SDDC_CFG_NET_IMPL);
+    ms_net_set_impl(SDDC_CFG_NET_IMPL);
 #endif
 
     /*
