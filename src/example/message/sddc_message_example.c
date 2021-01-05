@@ -131,7 +131,7 @@ static char *iot_pi_report_data_create(void)
         cJSON_AddStringToObject(report, "name",   "IoT Pi");
         cJSON_AddStringToObject(report, "type",   "device");
         cJSON_AddBoolToObject(report,   "excl",   MS_FALSE);
-        cJSON_AddStringToObject(report, "desc",   "https://www.edgeros.com/iotpi");
+        cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
         cJSON_AddStringToObject(report, "model",  "1");
         cJSON_AddStringToObject(report, "vendor", "ACOINFO");
 
@@ -161,7 +161,7 @@ static char *iot_pi_invite_data_create(void)
         cJSON_AddStringToObject(report, "name",   "IoT Pi");
         cJSON_AddStringToObject(report, "type",   "device");
         cJSON_AddBoolToObject(report,   "excl",   MS_FALSE);
-        cJSON_AddStringToObject(report, "desc",   "https://www.edgeros.com/iotpi");
+        cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
         cJSON_AddStringToObject(report, "model",  "1");
         cJSON_AddStringToObject(report, "vendor", "ACOINFO");
 
