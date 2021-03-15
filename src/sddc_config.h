@@ -31,4 +31,7 @@
 
 #define SDDC_CFG_SECURITY_EN            1
 
+/* Define __FREERTOS__ if use FreeRTOS */
+#undef __FREERTOS__
+
 #endif /* SDDC_CONFIG_H */

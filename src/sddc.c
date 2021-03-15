@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <string.h>
 #include "sddc_config.h"
 #include "sddc.h"
 #include "sddc_list.h"

@@ -85,6 +85,8 @@ typedef uint8_t sddc_bool_t;
 #include "sddc_msrtos.h"
 #elif defined(SYLIXOS)
 #include "sddc_posix.h"
+#elif defined(__FREERTOS__)
+#include "sddc_freertos.h"
 #else
 #error "Please porting to you RTOS!"
 #endif
