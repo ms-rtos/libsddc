@@ -29,4 +29,4 @@ v1.0.0
 Apache-2.0 
 
 ## ESP8266/ESP32 wifi 模块使用 `libsddc`
-- 请使用 `https://github.com/ms-rtos/ESP8266_RTOS_SDK`。
+- 请使用 `https://github.com/ms-rtos/AiThinkerProjectForESP`。
