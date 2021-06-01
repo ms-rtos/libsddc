@@ -39,7 +39,7 @@ LOCAL_SRCS := \
 # Header file search path (eg. LOCAL_INC_PATH := -I"Your hearder files search path")
 #*********************************************************************************************************
 LOCAL_INC_PATH := \
--I"$(MSRTOS_BASE_PATH)/sddc/src" \
+-I"$(MSRTOS_BASE_PATH)/libsddc/src" \
 -I"$(MSRTOS_BASE_PATH)/cjson/src/cJSON" \
 -I"$(MSRTOS_BASE_PATH)/u8g2/src/u8g2/csrc" \
 -I"$(MSRTOS_BASE_PATH)/u8g2/src"
@@ -54,7 +54,7 @@ LOCAL_DSYMBOL :=
 #*********************************************************************************************************
 LOCAL_DEPEND_LIB      := -lsddc -lcjson -lu8g2 -lmbedtls -lmbedx509 -lmbedcrypto 
 LOCAL_DEPEND_LIB_PATH := \
--L"$(MSRTOS_BASE_PATH)/sddc/$(OUTDIR)" \
+-L"$(MSRTOS_BASE_PATH)/libsddc/$(OUTDIR)" \
 -L"$(MSRTOS_BASE_PATH)/cJSON/$(OUTDIR)" \
 -L"$(MSRTOS_BASE_PATH)/u8g2/$(OUTDIR)" \
 -L"$(MSRTOS_BASE_PATH)/mbedtls/$(OUTDIR)"
