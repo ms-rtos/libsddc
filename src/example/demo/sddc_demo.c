@@ -12,8 +12,6 @@
 
 #include <ms_rtos.h>
 #include "sddc.h"
-#include "u8x8.h"
-#include "ms_u8g2_porting.h"
 #include "cJSON.h"
 
 static int led1_fd;
@@ -26,69 +24,7 @@ static int key3_fd;
 
 static int sockfd;
 
-static u8x8_t u8x8;                    // u8x8 object
-static ms_uint8_t u8x8_x, u8x8_y;      // current position on the screen
 static ms_bool_t led_state_bak[3];
-
-/*
- * Initialize IoT Pi display
- */
-static void iot_pi_display_init(void)
-{
-    ms_u8x8_i2c_dev_set("/dev/i2c1");
-    u8x8_Setup(&u8x8, u8x8_d_ssd1306_128x64_noname, u8x8_cad_ssd13xx_i2c,
-               ms_u8x8_byte_hw_i2c, ms_u8x8_gpio_and_delay_hw_i2c);
-    u8x8_InitDisplay(&u8x8);
-    u8x8_ClearDisplay(&u8x8);
-    u8x8_SetPowerSave(&u8x8, 0);
-    u8x8_SetFont(&u8x8, u8x8_font_amstrad_cpc_extended_r);
-    u8x8_x = 0;
-    u8x8_y = 0;
-}
-
-/*
- * IoT Pi display putch
- */
-static void iot_pi_display_putch(ms_uint8_t c)
-{
-    if (u8x8_x >= u8x8_GetCols(&u8x8)) {
-        u8x8_x = 0;
-        u8x8_y++;
-        if (u8x8_y >= u8x8_GetRows(&u8x8)) {
-            u8x8_y = 0;
-        }
-    }
-
-    u8x8_DrawGlyph(&u8x8, u8x8_x, u8x8_y, c);
-    u8x8_x++;
-}
-
-/*
- * IoT Pi display puts
- */
-static void iot_pi_display_puts(const char *s)
-{
-    while (*s != '\0') {
-        if (*s == '\n') {
-            u8x8_x = 0;
-            u8x8_y++;
-            if (u8x8_y >= u8x8_GetRows(&u8x8)) {
-                u8x8_y = 0;
-            }
-            break;
-        }
-        iot_pi_display_putch(*s++);
-    }
-}
-
-/*
- * IoT Pi display set position
- */
-static void iot_pi_display_pos_set(ms_uint8_t x, ms_uint8_t y)
-{
-    u8x8_x = x;
-    u8x8_y = y;
-}
 
 /*
  * Report IoT Pi led state
@@ -127,7 +63,6 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
 {
     cJSON *root = cJSON_Parse(message);
     cJSON *led;
-    cJSON *display;
     ms_bool_t led_state[3];
 
     memcpy(led_state, led_state_bak, sizeof(led_state_bak));
@@ -172,42 +107,6 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
             ms_uint8_t off = 1;
             ms_io_write(led3_fd, &off, 1);
             led_state[2] = 0;
-        }
-    }
-
-    display = cJSON_GetObjectItem(root, "display");
-    if (cJSON_IsObject(display)) {
-        cJSON *x_number, *y_number, *clr_number;
-        cJSON *text;
-        ms_uint8_t x = 0, y = 0, clr = 0;
-
-        x_number = cJSON_GetObjectItem(display, "x");
-        y_number = cJSON_GetObjectItem(display, "y");
-
-        if (cJSON_IsNumber(x_number)) {
-            x = (int)x_number->valuedouble;
-        }
-
-        if (cJSON_IsNumber(y_number)) {
-            y = (int)y_number->valuedouble;
-        }
-
-        iot_pi_display_pos_set(x, y);
-
-        text = cJSON_GetObjectItem(display, "text");
-        if (cJSON_IsString(text)) {
-            iot_pi_display_puts(text->valuestring);
-
-        } else {
-            clr_number = cJSON_GetObjectItem(display, "clear");
-            if (cJSON_IsNumber(clr_number)) {
-                int i;
-
-                clr = (int)clr_number->valuedouble;
-                for (i = 0; i < clr; i++) {
-                    iot_pi_display_putch(' ');
-                }
-            }
         }
     }
 
@@ -558,12 +457,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    /*
-     * Initialize IoT Pi display
-     */
-    iot_pi_display_init();
-    iot_pi_display_pos_set(0, 0);
-
 #ifdef SDDC_CFG_NET_IMPL
     ms_net_set_impl(SDDC_CFG_NET_IMPL);
 #endif
@@ -633,7 +526,7 @@ int main(int argc, char *argv[])
 
         ms_printf("IP addr: %s\n", ip);
     } else {
-        ms_printf("Failed to get IP address, WiFi AP not online!\n");
+        ms_printf("Failed to get IP address, Wi-Fi AP not online!\n");
     }
 
     /*

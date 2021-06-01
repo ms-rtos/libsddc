@@ -40,9 +40,7 @@ LOCAL_SRCS := \
 #*********************************************************************************************************
 LOCAL_INC_PATH := \
 -I"$(MSRTOS_BASE_PATH)/libsddc/src" \
--I"$(MSRTOS_BASE_PATH)/cjson/src/cJSON" \
--I"$(MSRTOS_BASE_PATH)/u8g2/src/u8g2/csrc" \
--I"$(MSRTOS_BASE_PATH)/u8g2/src"
+-I"$(MSRTOS_BASE_PATH)/cjson/src/cJSON"
 
 #*********************************************************************************************************
 # Pre-defined macro (eg. -DYOUR_MARCO=1)
@@ -52,11 +50,10 @@ LOCAL_DSYMBOL :=
 #*********************************************************************************************************
 # Depend library (eg. LOCAL_DEPEND_LIB := -la LOCAL_DEPEND_LIB_PATH := -L"Your library search path")
 #*********************************************************************************************************
-LOCAL_DEPEND_LIB      := -lsddc -lcjson -lu8g2 -lmbedtls -lmbedx509 -lmbedcrypto 
+LOCAL_DEPEND_LIB      := -lsddc -lcjson -lmbedtls -lmbedx509 -lmbedcrypto 
 LOCAL_DEPEND_LIB_PATH := \
 -L"$(MSRTOS_BASE_PATH)/libsddc/$(OUTDIR)" \
 -L"$(MSRTOS_BASE_PATH)/cJSON/$(OUTDIR)" \
--L"$(MSRTOS_BASE_PATH)/u8g2/$(OUTDIR)" \
 -L"$(MSRTOS_BASE_PATH)/mbedtls/$(OUTDIR)"
 
 #*********************************************************************************************************

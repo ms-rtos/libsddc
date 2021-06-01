@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
 
         ms_printf("IP addr: %s\n", ip);
     } else {
-        ms_printf("Failed to get IP address, WiFi AP not online!\n");
+        ms_printf("Failed to get IP address, Wi-Fi AP not online!\n");
     }
 
     close(sockfd);
