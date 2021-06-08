@@ -28,7 +28,17 @@ typedef pthread_mutex_t sddc_mutex_t;
 
 static inline int sddc_mutex_create(sddc_mutex_t *mutex)
 {
-    return pthread_mutex_init(mutex, NULL);
+    pthread_mutexattr_t attr;
+    int ret;
+
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+
+    ret = pthread_mutex_init(mutex, &attr);
+
+    pthread_mutexattr_destroy(&attr);
+
+    return ret;
 }
 
 static inline int sddc_mutex_destroy(sddc_mutex_t *mutex)

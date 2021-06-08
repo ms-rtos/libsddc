@@ -32,7 +32,7 @@ typedef SemaphoreHandle_t   sddc_mutex_t;
 
 static inline int sddc_mutex_create(sddc_mutex_t *mutex)
 {
-    *mutex = xSemaphoreCreateMutex();
+    *mutex = xSemaphoreCreateRecursiveMutex();
     return 0;
 }
 
@@ -44,13 +44,13 @@ static inline int sddc_mutex_destroy(sddc_mutex_t *mutex)
 
 static inline int sddc_mutex_lock(sddc_mutex_t *mutex)
 {
-    xSemaphoreTake(*mutex, portMAX_DELAY);
+    xSemaphoreTakeRecursive(*mutex, portMAX_DELAY);
     return 0;
 }
 
 static inline int sddc_mutex_unlock(sddc_mutex_t *mutex)
 {
-    xSemaphoreGive(*mutex);
+    xSemaphoreGiveRecursive(*mutex);
     return 0;
 }
 
