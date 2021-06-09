@@ -20,7 +20,7 @@ extern "C" {
 #include "sddc_config.h"
 #include <stdint.h>
 
-#define SDDC_VERSION        110U
+#define LIBSDDC_VERSION     110U
 
 typedef uint8_t sddc_bool_t;
 #define SDDC_TRUE           1U
