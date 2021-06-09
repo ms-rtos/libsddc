@@ -47,8 +47,7 @@ include $(MKTEMP)/header.mk
 # Include targets makefiles
 #*********************************************************************************************************
 include libsddc.mk
-include sddc_message_example.mk
-include sddc_demo.mk
+include sddc_examples.mk
 
 #*********************************************************************************************************
 # Include end.mk

@@ -4,7 +4,7 @@
  *
  * Detailed license information can be found in the LICENSE file.
  *
- * File: sddc_demo.c SDDC demo.
+ * File: sddc_demo.c IoT Pi SDDC demo.
  *
  * Author: Jiao.jinxing <jiaojinxing@acoinfo.com>
  *

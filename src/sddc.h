@@ -20,6 +20,8 @@ extern "C" {
 #include "sddc_config.h"
 #include <stdint.h>
 
+#define SDDC_VERSION        110U
+
 typedef uint8_t sddc_bool_t;
 #define SDDC_TRUE           1U
 #define SDDC_FALSE          0U
@@ -66,6 +68,18 @@ typedef uint8_t sddc_bool_t;
 #else
 #define SDDC_LOG_INFO(...)
 #endif
+
+#define sddc_return_value_if_fail(p, value)                     \
+    if (!(p)) {                                                 \
+        SDDC_LOG_ERR("%s:%d " #p "\n", __FUNCTION__, __LINE__); \
+        return (value);                                         \
+    }
+
+#define sddc_goto_error_if_fail(p)                              \
+    if (!(p)) {                                                 \
+        SDDC_LOG_ERR("%s:%d " #p "\n", __FUNCTION__, __LINE__); \
+        goto error;                                             \
+    }
 
 /*
  * RTOS needs to implement the following API:
@@ -187,6 +201,9 @@ typedef uint8_t sddc_bool_t;
 
 struct sddc_context;
 typedef struct sddc_context sddc_t;
+
+struct sddc_connector;
+typedef struct sddc_connector sddc_connector_t;
 
 /**
  * @brief Callback function on receive INVITE request.
@@ -430,6 +447,60 @@ int sddc_broadcast_message(sddc_t *sddc,
                            const void *payload, size_t payload_len,
                            uint8_t retries, sddc_bool_t urgent,
                            uint16_t *seqno);
+
+/**
+ * @brief Create a SDDC connector.
+ *
+ * @param[in] connector     Pointer to SDDC
+ * @param[in] uid           Pointer to EdgerOS UID
+ * @param[in] port          EdgerOS TCP server port
+ * @param[in] token         Pointer to token string
+ * @param[in] get_mode      Get data mode?
+ *
+ * @return Pointer to SDDC connector.
+ */
+sddc_connector_t *sddc_connector_create(sddc_t *sddc, const uint8_t *uid, uint16_t port, const char *token, sddc_bool_t get_mode);
+
+/**
+ * @brief Destroy SDDC connector.
+ *
+ * @param[in] connector     Pointer to SDDC connector
+ *
+ * @return Error number
+ */
+int sddc_connector_destroy(sddc_connector_t *connector);
+
+/**
+ * @brief Get fd of SDDC connector.
+ *
+ * @param[in] connector     Pointer to SDDC connector
+ *
+ * @return The fd of SDDC connector if success, -1 if failure.
+ */
+int sddc_connector_fd(sddc_connector_t *connector);
+
+/**
+ * @brief Put data to SDDC connector.
+ *
+ * @param[in] connector     Pointer to SDDC connector
+ * @param[in] data          Pointer to data buffer
+ * @param[in] len           The size of data buffer
+ * @param[in] finish        Whether to end the transfer
+ *
+ * @return 0 if success, -1 if failure.
+ */
+int sddc_connector_put(sddc_connector_t *connector, const void *data, size_t len, sddc_bool_t finish);
+
+/**
+ * @brief Get data from SDDC connector.
+ *
+ * @param[in] connector     Pointer to SDDC connector
+ * @param[in] data          Pointer to data buffer pointer
+ * @param[out] finish       Whether to end the transfer
+ *
+ * @return The size of data received.
+ */
+ssize_t sddc_connector_get(sddc_connector_t *connector, void **data, sddc_bool_t *finish);
 
 #ifdef __cplusplus
 }
