@@ -11,7 +11,7 @@ SDDC 协议实现了以下功能：
 - EdgerOS 维持设备 Online 状态
 - EdgerOS 与设备间的双向数据通信，数据可加密，支持带有消息重传和确认的可靠通信方式
 
-[SDDC 详细协议](https://www.edgeros.com/ms-rtos/guide/sddc_introduction.html)
+[SDDC 协议介绍](https://www.edgeros.com/ms-rtos/guide/sddc_introduction.html)
 
 ## libsddc
 
