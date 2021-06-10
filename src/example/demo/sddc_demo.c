@@ -29,12 +29,13 @@ static ms_bool_t led_state_bak[3];
 /*
  * Report IoT Pi led state
  */
-static void iot_pi_led_state_report(sddc_t *sddc, const uint8_t *uid, ms_bool_t *led_state)
+static int iot_pi_led_state_report(sddc_t *sddc, const uint8_t *uid, ms_bool_t *led_state)
 {
     cJSON *root;
     char *str;
 
     root = cJSON_CreateObject();
+    sddc_return_value_if_fail(root, -1);
 
     if (led_state != MS_NULL) {
         cJSON_AddBoolToObject(root, "led1", led_state[0]);
@@ -48,27 +49,39 @@ static void iot_pi_led_state_report(sddc_t *sddc, const uint8_t *uid, ms_bool_t 
     }
 
     str = cJSON_Print(root);
+    sddc_goto_error_if_fail(str);
 
     sddc_send_message(sddc, uid, str, strlen(str), 1, MS_FALSE, MS_NULL);
-
     cJSON_free(str);
 
     cJSON_Delete(root);
+
+    return 0;
+
+error:
+    cJSON_Delete(root);
+
+    return -1;
 }
 
 /*
  * Handle MESSAGE
  */
-static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, ms_size_t len)
+static sddc_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, ms_size_t len)
 {
     cJSON *root = cJSON_Parse(message);
     cJSON *led;
     ms_bool_t led_state[3];
+    char *str;
+
+    sddc_return_value_if_fail(root, SDDC_TRUE);
 
     memcpy(led_state, led_state_bak, sizeof(led_state_bak));
 
-    char *str = cJSON_Print(root);
-    ms_printf("iot_pi_on_message: %s\n", str);
+    str = cJSON_Print(root);
+    sddc_goto_error_if_fail(str);
+
+    sddc_printf("iot_pi_on_message: %s\n", str);
     cJSON_free(str);
 
     led = cJSON_GetObjectItem(root, "led1");
@@ -110,10 +123,11 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
         }
     }
 
-    cJSON_Delete(root);
-
     iot_pi_led_state_report(sddc, uid, led_state);
     memcpy(led_state_bak, led_state, sizeof(led_state_bak));
+
+error:
+    cJSON_Delete(root);
 
     return MS_TRUE;
 }
@@ -121,17 +135,15 @@ static ms_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char 
 /*
  * Handle MESSAGE ACK
  */
-static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
+static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
-
 }
 
 /*
  * Handle MESSAGE lost
  */
-static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, ms_uint16_t seqno)
+static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
-
 }
 
 /*
@@ -139,65 +151,72 @@ static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, ms_uint16_t
  */
 static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
 {
-
 }
 
 /*
- * Handle UPDATE
+ * handle UPDATE
  */
-static ms_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *update_data, ms_size_t len)
+static sddc_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *udpate_data, size_t len)
 {
-    cJSON *root = cJSON_Parse(update_data);
+    cJSON *root = cJSON_Parse(udpate_data);
+    char *str;
 
-    if (root) {
-        /*
-         * Parse here
-         */
+    sddc_return_value_if_fail(root, SDDC_FALSE);
 
-        char *str = cJSON_Print(root);
+    /*
+     * Parse here
+     */
 
-        ms_printf("iot_pi_sddc_on_update: %s\n", str);
+    str = cJSON_Print(root);
+    sddc_goto_error_if_fail(str);
 
-        cJSON_free(str);
+    sddc_printf("iot_pi_on_update: %s\n", str);
+    cJSON_free(str);
 
-        cJSON_Delete(root);
+    cJSON_Delete(root);
 
-        return MS_TRUE;
-    } else {
-        return MS_FALSE;
-    }
+    return SDDC_TRUE;
+
+error:
+    cJSON_Delete(root);
+
+    return SDDC_FALSE;
 }
 
 /*
- * Handle INVITE
+ * handle INVITE
  */
-static ms_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, ms_size_t len)
+static sddc_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, size_t len)
 {
     cJSON *root = cJSON_Parse(invite_data);
+    char *str;
 
-    if (root) {
-        /*
-         * Parse here
-         */
+    sddc_return_value_if_fail(root, SDDC_FALSE);
 
-        char *str = cJSON_Print(root);
+    /*
+     * Parse here
+     */
 
-        ms_printf("iot_pi_on_invite: %s\n", str);
+    str = cJSON_Print(root);
+    sddc_goto_error_if_fail(str);
 
-        cJSON_free(str);
+    sddc_printf("iot_pi_on_invite: %s\n", str);
+    cJSON_free(str);
 
-        cJSON_Delete(root);
+    cJSON_Delete(root);
 
-        return MS_TRUE;
-    } else {
-        return MS_FALSE;
-    }
+    return SDDC_TRUE;
+
+error:
+    cJSON_Delete(root);
+
+    return SDDC_FALSE;
 }
 
 /*
  * handle the end of INVITE
  */
-static ms_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
+static sddc_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {
     iot_pi_led_state_report(sddc, uid, MS_NULL);
 
@@ -214,20 +233,27 @@ static char *iot_pi_report_data_create(void)
     char *str;
 
     root = cJSON_CreateObject();
-    cJSON_AddItemToObject(root, "report", report = cJSON_CreateObject());
-        cJSON_AddStringToObject(report, "name",   "IoT Pi");
-        cJSON_AddStringToObject(report, "type",   "device");
-        cJSON_AddBoolToObject(report,   "excl",   MS_FALSE);
-        cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
-        cJSON_AddStringToObject(report, "model",  "1");
-        cJSON_AddStringToObject(report, "vendor", "ACOINFO");
+    sddc_return_value_if_fail(root, NULL);
+
+    report = cJSON_CreateObject();
+    sddc_return_value_if_fail(report, NULL);
+
+    cJSON_AddItemToObject(root, "report", report);
+    cJSON_AddStringToObject(report, "name",   "IoT Pi");
+    cJSON_AddStringToObject(report, "type",   "device");
+    cJSON_AddBoolToObject(report,   "excl",   SDDC_FALSE);
+    cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
+    cJSON_AddStringToObject(report, "model",  "1");
+    cJSON_AddStringToObject(report, "vendor", "ACOINFO");
 
     /*
      * Add extension here
      */
 
     str = cJSON_Print(root);
-    ms_printf("REPORT DATA: %s\n", str);
+    sddc_return_value_if_fail(str, NULL);
+
+    sddc_printf("REPORT DATA: %s\n", str);
 
     cJSON_Delete(root);
 
@@ -244,20 +270,27 @@ static char *iot_pi_invite_data_create(void)
     char *str;
 
     root = cJSON_CreateObject();
-    cJSON_AddItemToObject(root, "report", report = cJSON_CreateObject());
-        cJSON_AddStringToObject(report, "name",   "IoT Pi");
-        cJSON_AddStringToObject(report, "type",   "device");
-        cJSON_AddBoolToObject(report,   "excl",   MS_FALSE);
-        cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
-        cJSON_AddStringToObject(report, "model",  "1");
-        cJSON_AddStringToObject(report, "vendor", "ACOINFO");
+    sddc_return_value_if_fail(root, NULL);
+
+    report = cJSON_CreateObject();
+    sddc_return_value_if_fail(report, NULL);
+
+    cJSON_AddItemToObject(root, "report", report);
+    cJSON_AddStringToObject(report, "name",   "IoT Pi");
+    cJSON_AddStringToObject(report, "type",   "device");
+    cJSON_AddBoolToObject(report,   "excl",   SDDC_FALSE);
+    cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
+    cJSON_AddStringToObject(report, "model",  "1");
+    cJSON_AddStringToObject(report, "vendor", "ACOINFO");
 
     /*
      * Add extension here
      */
 
     str = cJSON_Print(root);
-    ms_printf("INVITE DATA: %s\n", str);
+    sddc_return_value_if_fail(str, NULL);
+
+    sddc_printf("INVITE DATA: %s\n", str);
 
     cJSON_Delete(root);
 
@@ -285,6 +318,7 @@ static void iot_pi_key_thread(ms_ptr_t arg)
             char *str;
 
             root = cJSON_CreateObject();
+            sddc_return_if_fail(root);
 
             if (FD_ISSET(key1_fd, &rfds)) {
                 key1_press++;
@@ -300,9 +334,9 @@ static void iot_pi_key_thread(ms_ptr_t arg)
                         ifreq.ifr_flags = !ifreq.ifr_flags;
 
                         if (ifreq.ifr_flags) {
-                            ms_printf("Start smart configure...\n");
+                            sddc_printf("Start smart configure...\n");
                         } else {
-                            ms_printf("Stop smart configure...\n");
+                            sddc_printf("Stop smart configure...\n");
                         }
                         ioctl(sockfd, SIOCSIFPFLAGS, &ifreq);
                         continue;
@@ -337,9 +371,9 @@ static void iot_pi_key_thread(ms_ptr_t arg)
             }
 
             str = cJSON_Print(root);
+            sddc_return_if_fail(str);
 
             sddc_broadcast_message(sddc, str, strlen(str), 1, MS_FALSE, MS_NULL);
-
             cJSON_free(str);
 
             cJSON_Delete(root);
@@ -358,20 +392,13 @@ static int iot_pi_led_init(void)
      * Open leds
      */
     led1_fd = ms_io_open("/dev/led1", O_WRONLY, 0666);
-    if (led1_fd < 0) {
-        ms_printf("Failed to open /dev/led1\n");
-        return -1;
-    }
+    sddc_return_value_if_fail(led1_fd >= 0, -1);
+
     led2_fd = ms_io_open("/dev/led2", O_WRONLY, 0666);
-    if (led2_fd < 0) {
-        ms_printf("Failed to open /dev/led2\n");
-        return -1;
-    }
+    sddc_return_value_if_fail(led2_fd >= 0, -1);
+
     led3_fd = ms_io_open("/dev/led3", O_WRONLY, 0666);
-    if (led3_fd < 0) {
-        ms_printf("Failed to open /dev/led3\n");
-        return -1;
-    }
+    sddc_return_value_if_fail(led3_fd >= 0, -1);
 
     /*
      * Set gpio output mode
@@ -408,20 +435,13 @@ static int iot_pi_key_init(void)
      * Open keys
      */
     key1_fd = ms_io_open("/dev/key1", O_WRONLY, 0666);
-    if (key1_fd < 0) {
-        ms_printf("Failed to open /dev/key1\n");
-        return -1;
-    }
+    sddc_return_value_if_fail(key1_fd >= 0, -1);
+
     key2_fd = ms_io_open("/dev/key2", O_WRONLY, 0666);
-    if (key2_fd < 0) {
-        ms_printf("Failed to open /dev/key2\n");
-        return -1;
-    }
+    sddc_return_value_if_fail(key2_fd >= 0, -1);
+
     key3_fd = ms_io_open("/dev/key3", O_WRONLY, 0666);
-    if (key3_fd < 0) {
-        ms_printf("Failed to open /dev/key3\n");
-        return -1;
-    }
+    sddc_return_value_if_fail(key3_fd >= 0, -1);
 
     /*
      * Set gpio irq mode
@@ -442,29 +462,33 @@ int main(int argc, char *argv[])
     struct sockaddr_in *psockaddrin = (struct sockaddr_in *)&(ifreq.ifr_addr);
     sddc_t *sddc;
     char *data;
+    int ret;
 
     /*
      * Initialize IoT Pi led
      */
-    if (iot_pi_led_init() < 0) {
-        return -1;
-    }
+    ret = iot_pi_led_init();
+    sddc_return_value_if_fail(ret == 0, -1);
 
     /*
      * Initialize IoT Pi key
      */
-    if (iot_pi_key_init() < 0) {
-        return -1;
-    }
+    ret = iot_pi_key_init();
+    sddc_return_value_if_fail(ret == 0, -1);
 
+    /*
+     * Set network implement
+     */
 #ifdef SDDC_CFG_NET_IMPL
-    ms_net_set_impl(SDDC_CFG_NET_IMPL);
+    ret = ms_net_set_impl(SDDC_CFG_NET_IMPL);
+    sddc_return_value_if_fail(ret == MS_ERR_NONE, -1);
 #endif
 
     /*
      * Create SDDC
      */
     sddc = sddc_create(SDDC_CFG_PORT);
+    sddc_return_value_if_fail(sddc, -1);
 
     /*
      * Set call backs
@@ -481,29 +505,33 @@ int main(int argc, char *argv[])
      * Set token
      */
 #if SDDC_CFG_SECURITY_EN > 0
-    sddc_set_token(sddc, "1234567890");
+    ret = sddc_set_token(sddc, "1234567890");
+    sddc_return_value_if_fail(ret == 0, -1);
 #endif
 
     /*
      * Set report data
      */
     data = iot_pi_report_data_create();
+    sddc_return_value_if_fail(data, -1);
     sddc_set_report_data(sddc, data, strlen(data));
 
     /*
      * Set invite data
      */
     data = iot_pi_invite_data_create();
+    sddc_return_value_if_fail(data, -1);
     sddc_set_invite_data(sddc, data, strlen(data));
 
     /*
      * Get mac address
      */
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    sddc_return_value_if_fail(sockfd >= 0, -1);
 
     ioctl(sockfd, SIOCGIFHWADDR, &ifreq);
 
-    ms_printf("MAC addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
+    sddc_printf("MAC addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
               (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[0],
               (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[1],
               (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[2],
@@ -524,32 +552,33 @@ int main(int argc, char *argv[])
 
         inet_ntoa_r(psockaddrin->sin_addr, ip, sizeof(ip));
 
-        ms_printf("IP addr: %s\n", ip);
+        sddc_printf("IP addr: %s\n", ip);
     } else {
-        ms_printf("Failed to get IP address, Wi-Fi AP not online!\n");
+        sddc_printf("Failed to get IP address, Wi-Fi AP not online!\n");
     }
 
     /*
      * Create keys scan thread
      */
-    ms_thread_create("t_key",
-                     iot_pi_key_thread,
-                     sddc,
-                     2048U,
-                     30U,
-                     70U,
-                     MS_THREAD_OPT_USER | MS_THREAD_OPT_REENT_EN,
-                     MS_NULL);
+    ret = ms_thread_create("t_key",
+                           iot_pi_key_thread,
+                           sddc,
+                           2048U,
+                           30U,
+                           70U,
+                           MS_THREAD_OPT_USER | MS_THREAD_OPT_REENT_EN,
+                           MS_NULL);
+    sddc_return_value_if_fail(ret == MS_ERR_NONE, -1);
 
     /*
      * SDDC run
      */
     while (1) {
-        ms_printf("SDDC running...\n");
+        sddc_printf("SDDC running...\n");
 
         sddc_run(sddc);
 
-        ms_printf("SDDC quit!\n");
+        sddc_printf("SDDC quit!\n");
     }
 
     /*

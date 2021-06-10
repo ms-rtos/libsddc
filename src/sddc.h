@@ -27,27 +27,27 @@ typedef uint8_t sddc_bool_t;
 #define SDDC_FALSE          0U
 
 #if SDDC_CFG_CRIT_EN > 0
-#define SDDC_LOG_CRIT(...) do {                             \
-    sddc_printf("[%s] %d CRIT: ", __FUNCTION__, __LINE__);  \
-    sddc_printf(__VA_ARGS__);                               \
+#define SDDC_LOG_CRIT(...) do {                                  \
+    sddc_printf("[SDDC] %s %d CRIT: ", __FUNCTION__, __LINE__);  \
+    sddc_printf(__VA_ARGS__);                                    \
 } while (0)
 #else
 #define SDDC_LOG_CRIT(...)
 #endif
 
 #if SDDC_CFG_ERR_EN > 0
-#define SDDC_LOG_ERR(...) do {                              \
-    sddc_printf("[%s] %d ERR: ", __FUNCTION__, __LINE__);   \
-    sddc_printf(__VA_ARGS__);                               \
+#define SDDC_LOG_ERR(...) do {                                  \
+    sddc_printf("[SDDC] %s %d ERR: ", __FUNCTION__, __LINE__);  \
+    sddc_printf(__VA_ARGS__);                                   \
 } while (0)
 #else
 #define SDDC_LOG_ERR(...)
 #endif
 
 #if SDDC_CFG_WARN_EN > 0
-#define SDDC_LOG_WARN(...) do {                             \
-    sddc_printf("[%s] %d WARN: ", __FUNCTION__, __LINE__);  \
-    sddc_printf(__VA_ARGS__);                               \
+#define SDDC_LOG_WARN(...) do {                                  \
+    sddc_printf("[SDDC] %s %d WARN: ", __FUNCTION__, __LINE__);  \
+    sddc_printf(__VA_ARGS__);                                    \
 } while (0)
 #else
 #define SDDC_LOG_WARN(...)
@@ -69,16 +69,22 @@ typedef uint8_t sddc_bool_t;
 #define SDDC_LOG_INFO(...)
 #endif
 
-#define sddc_return_value_if_fail(p, value)                     \
-    if (!(p)) {                                                 \
-        SDDC_LOG_ERR("%s:%d " #p "\n", __FUNCTION__, __LINE__); \
-        return (value);                                         \
+#define sddc_return_value_if_fail(p, value)                 \
+    if (!(p)) {                                             \
+        SDDC_LOG_ERR("Assert " #p " Fail\n");               \
+        return (value);                                     \
     }
 
-#define sddc_goto_error_if_fail(p)                              \
-    if (!(p)) {                                                 \
-        SDDC_LOG_ERR("%s:%d " #p "\n", __FUNCTION__, __LINE__); \
-        goto error;                                             \
+#define sddc_return_if_fail(p)                              \
+    if (!(p)) {                                             \
+        SDDC_LOG_ERR("Assert " #p " Fail\n");               \
+        return;                                             \
+    }
+
+#define sddc_goto_error_if_fail(p)                          \
+    if (!(p)) {                                             \
+        SDDC_LOG_ERR("Assert " #p " Fail\n");               \
+        goto error;                                         \
     }
 
 /*
@@ -478,6 +484,15 @@ int sddc_connector_destroy(sddc_connector_t *connector);
  * @return The fd of SDDC connector if success, -1 if failure.
  */
 int sddc_connector_fd(sddc_connector_t *connector);
+
+/**
+ * @brief Get transfer mode of SDDC connector.
+ *
+ * @param[in] connector     Pointer to SDDC connector
+ *
+ * @return The transfer mode(0: put mode, 1: get mode), -1 if failure.
+ */
+int sddc_connector_mode(sddc_connector_t *connector);
 
 /**
  * @brief Put data to SDDC connector.
