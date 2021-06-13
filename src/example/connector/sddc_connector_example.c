@@ -21,7 +21,7 @@ static int key2_fd;
 static int key3_fd;
 
 static ms_handle_t conn_mqueue_id;
-static sddc_connector_t *conn_mqueue_buf[10];
+static sddc_connector_t *conn_mqueue_buf[4];
 
 #define __RECV_IMAGE_FILENAME   "/sd0/recv_img.jpg"
 #define __SEND_IMAGE_FILENAME   "/sd0/send_img.png"
@@ -88,13 +88,12 @@ static void iot_pi_put_pic(sddc_connector_t *conn)
             break;
         }
 
-        totol_len += len;
-
-        ret = sddc_connector_put(conn, buf, len, totol_len == st.st_size);
+        ret = sddc_connector_put(conn, buf, len, (totol_len + len) == st.st_size);
         if (ret < 0) {
             sddc_printf("Failed to put!\n");
             break;
         }
+        totol_len += len;
 
         sddc_printf("Put %d byte\n", len);
     }

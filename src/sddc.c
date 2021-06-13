@@ -594,7 +594,6 @@ static sddc_edgeros_t *__sddc_edgeros_update(sddc_t *sddc, const uint8_t *uid, c
 
     if (edgeros != NULL) {
         edgeros->addr  = *cli_addr;
-        edgeros->alive = SDDC_CFG_EDGEROS_ALIVE;
     }
 
     return edgeros;
@@ -602,6 +601,11 @@ static sddc_edgeros_t *__sddc_edgeros_update(sddc_t *sddc, const uint8_t *uid, c
 
 static int __sddc_edgeros_destroy(sddc_edgeros_t *edgeros)
 {
+    char ip_str[IP4ADDR_STRLEN_MAX];
+
+    inet_ntoa_r(edgeros->addr.sin_addr, ip_str, sizeof(ip_str));
+    SDDC_LOG_DBG("EdgerOS lost %s!\n", ip_str);
+
     while (edgeros->mqueue_len > 0) {
         sddc_message_t *message = SDDC_CONTAINER_OF(edgeros->mqueue.next, sddc_message_t, node);
         sddc_list_del(&message->node);
@@ -624,14 +628,17 @@ static int __sddc_after_invite_respond(sddc_t *sddc, sddc_edgeros_t *edgeros, co
             memcpy(edgeros->uid, uid, sizeof(edgeros->uid));
             edgeros->addr       = *cli_addr;
             edgeros->alive      = SDDC_CFG_EDGEROS_ALIVE;
-            edgeros->mqueue_len = 0;
             edgeros->last_seqno = -1;
+            edgeros->mqueue_len = 0;
             SDDC_LIST_HEAD_INIT(&edgeros->mqueue);
             sddc_list_add(&edgeros->node, &sddc->edgeros_list);
 
         } else {
             SDDC_LOG_ERR("Failed to allocate memory!\n");
         }
+    } else {
+        edgeros->addr       = *cli_addr;
+        edgeros->last_seqno = -1;
     }
 
     sddc_return_value_if_fail(edgeros != NULL, -1);
@@ -657,6 +664,7 @@ static void __sddc_read_handle(sddc_t *sddc)
         size_t          payload_len;
         void           *payload;
         int             unpack_ret;
+        uint8_t         flag_type;
 
         header->seqno  = ntohs(header->seqno);
         header->length = ntohs(header->length);
@@ -668,28 +676,35 @@ static void __sddc_read_handle(sddc_t *sddc)
         /*
          * Updated EdgerOS address info
          */
-        edgeros = __sddc_edgeros_update(sddc, header->uid, &cli_addr);
+        edgeros   = __sddc_edgeros_update(sddc, header->uid, &cli_addr);
+        flag_type = SDDC_GET_TYPE(header);
+        if (flag_type != SDDC_TYPE_DISCOVER && edgeros) {
+            edgeros->alive = SDDC_CFG_EDGEROS_ALIVE;
+        }
 
-        switch (SDDC_GET_TYPE(header)) {
+        switch (flag_type) {
         case SDDC_TYPE_PING:                                        /* PING                 */
             if (header->flags_type & SDDC_FLAG_REQ) {               /* PING request         */
                 SDDC_LOG_DBG("Receive ping from: %s.\n", ip_str);
+                if (edgeros != NULL) {
+                    /*
+                     * Build PING respond
+                     */
+                    len = __sddc_build_packet(sddc, sddc->send_buf,
+                                              SDDC_TYPE_PING,
+                                              SDDC_FLAG_ACK,
+                                              SDDC_SEC_FLAG_NONE,
+                                              header->seqno,
+                                              NULL, 0);
 
-                /*
-                 * Build PING respond
-                 */
-                len = __sddc_build_packet(sddc, sddc->send_buf,
-                                          SDDC_TYPE_PING,
-                                          SDDC_FLAG_ACK,
-                                          SDDC_SEC_FLAG_NONE,
-                                          header->seqno,
-                                          NULL, 0);
+                    /*
+                     * Send PING respond to EdgerOS
+                     */
+                    sendto(sddc->fd, sddc->send_buf, len, 0,
+                           (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
 
-                /*
-                 * Send PING respond to EdgerOS
-                 */
-                sendto(sddc->fd, sddc->send_buf, len, 0,
-                       (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+                    SDDC_LOG_DBG("Send ping respond to: %s.\n", ip_str);
+                }
             } else {
                 SDDC_LOG_DBG("Receive ping respond from: %s.\n", ip_str);
             }
@@ -698,22 +713,24 @@ static void __sddc_read_handle(sddc_t *sddc)
         case SDDC_TYPE_DISCOVER:
             SDDC_LOG_DBG("Receive discover from: %s.\n", ip_str);
 
-            if (sddc->report_data != NULL) {
+            if ((edgeros == NULL) && (sddc->report_data != NULL)) {
                 /*
-                 * Build REPORT
-                 */
+                * Build REPORT
+                */
                 len = __sddc_build_packet(sddc, sddc->send_buf,
-                                          SDDC_TYPE_REPORT,
-                                          SDDC_FLAG_NONE,
-                                          SDDC_SEC_FLAG_NONE,
-                                          sddc->seqno++,
-                                          sddc->report_data, sddc->report_data_len);
+                                        SDDC_TYPE_REPORT,
+                                        SDDC_FLAG_NONE,
+                                        SDDC_SEC_FLAG_NONE,
+                                        sddc->seqno++,
+                                        sddc->report_data, sddc->report_data_len);
 
                 /*
-                 * Send REPORT to EdgerOS
-                 */
+                * Send REPORT to EdgerOS
+                */
                 sendto(sddc->fd, sddc->send_buf, len, 0,
-                       (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+                    (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+
+                SDDC_LOG_DBG("Send discover respond to: %s.\n", ip_str);
             }
             break;
 
@@ -752,6 +769,8 @@ static void __sddc_read_handle(sddc_t *sddc)
                              */
                             sendto(sddc->fd, sddc->send_buf, len, 0,
                                    (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+
+                            SDDC_LOG_DBG("Send update respond to: %s.\n", ip_str);
                         }
                     }
                 } else {                                            /* Payload length error */
@@ -801,6 +820,8 @@ static void __sddc_read_handle(sddc_t *sddc)
                             sendto(sddc->fd, sddc->send_buf, len, 0,
                                    (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
 
+                            SDDC_LOG_DBG("Send invite respond to: %s.\n", ip_str);
+
                             /*
                              * Call after send INVITE respond
                              */
@@ -824,6 +845,8 @@ static void __sddc_read_handle(sddc_t *sddc)
                              */
                             sendto(sddc->fd, sddc->send_buf, len, 0,
                                    (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+
+                            SDDC_LOG_DBG("Send refuse respond to: %s.\n", ip_str);
                         }
                     }
                 } else {                                            /* Payload length error */
@@ -858,7 +881,7 @@ static void __sddc_read_handle(sddc_t *sddc)
                         }
                     }
 
-                } else {                                                /* MESSAGE request      */
+                } else {                                            /* MESSAGE request      */
                     SDDC_LOG_DBG("Receive message request from: %s.\n", ip_str);
 
                     if ((len - sizeof(sddc_header_t)) >= header->length) {
