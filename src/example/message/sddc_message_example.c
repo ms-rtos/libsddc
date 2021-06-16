@@ -15,7 +15,7 @@
 #include "cJSON.h"
 
 /*
- * handle MESSAGE
+ * Handle MESSAGE
  */
 static sddc_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, size_t len)
 {
@@ -39,28 +39,28 @@ error:
 }
 
 /*
- * handle MESSAGE ACK
+ * Handle MESSAGE ACK
  */
 static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
 }
 
 /*
- * handle MESSAGE lost
+ * Handle MESSAGE lost
  */
 static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
 }
 
 /*
- * handle EdgerOS lost
+ * Handle EdgerOS lost
  */
 static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
 {
 }
 
 /*
- * handle UPDATE
+ * Handle UPDATE
  */
 static sddc_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *udpate_data, size_t len)
 {
@@ -90,7 +90,7 @@ error:
 }
 
 /*
- * handle INVITE
+ * Handle INVITE
  */
 static sddc_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, size_t len)
 {
@@ -120,7 +120,7 @@ error:
 }
 
 /*
- * handle the end of INVITE
+ * Handle the end of INVITE
  */
 static sddc_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {

@@ -14,11 +14,17 @@
 #include "sddc.h"
 #include "cJSON.h"
 
-static int sockfd;
+static int led1_fd;
+static int led2_fd;
+static int led3_fd;
 
 static int key1_fd;
 static int key2_fd;
 static int key3_fd;
+
+static int sockfd;
+
+static ms_bool_t led_state_bak[3];
 
 static ms_handle_t conn_mqueue_id;
 static sddc_connector_t *conn_mqueue_buf[4];
@@ -55,6 +61,9 @@ static void iot_pi_get_pic(sddc_connector_t *conn)
                 break;
             }
         }
+
+        ms_io_write(led1_fd, &led_state_bak[0], 1);
+        led_state_bak[0] = !led_state_bak[0];
     }
 
     sddc_printf("Total get %d byte\n", totol_len);
@@ -96,6 +105,9 @@ static void iot_pi_put_pic(sddc_connector_t *conn)
         totol_len += len;
 
         sddc_printf("Put %d byte\n", len);
+
+        ms_io_write(led2_fd, &led_state_bak[1], 1);
+        led_state_bak[1] = !led_state_bak[1];
     }
 
     sddc_printf("Total put %d byte\n", totol_len);
@@ -128,7 +140,7 @@ static void iot_pi_connector_thread(ms_ptr_t arg)
 }
 
 /*
- * handle MESSAGE
+ * Handle MESSAGE
  */
 static sddc_bool_t iot_pi_on_message(sddc_t *sddc, const uint8_t *uid, const char *message, size_t len)
 {
@@ -195,99 +207,28 @@ error:
 }
 
 /*
- * IoT Pi key scan thread
- */
-static void iot_pi_key_thread(ms_ptr_t arg)
-{
-    fd_set  rfds;
-    sddc_t *sddc = arg;
-    ms_uint8_t key1_press = 0;
-    ms_uint64_t key1_press_begin = 0;
-
-    while (1) {
-        FD_ZERO(&rfds);
-        FD_SET(key1_fd, &rfds);
-        FD_SET(key2_fd, &rfds);
-        FD_SET(key3_fd, &rfds);
-
-        if (select(key3_fd + 1, &rfds, MS_NULL, MS_NULL, MS_NULL) > 0) {
-            if (FD_ISSET(key1_fd, &rfds)) {
-                key1_press++;
-                if (key1_press == 1) {
-                    key1_press_begin = ms_time_get_ms();
-
-                } else if (key1_press == 3) {
-                    key1_press = 0;
-
-                    if ((ms_time_get_ms() - key1_press_begin) < 800) {
-                        static struct ifreq ifreq;
-
-                        ifreq.ifr_flags = !ifreq.ifr_flags;
-
-                        if (ifreq.ifr_flags) {
-                            sddc_printf("Start smart configure...\n");
-                        } else {
-                            sddc_printf("Stop smart configure...\n");
-                        }
-                        ioctl(sockfd, SIOCSIFPFLAGS, &ifreq);
-                        continue;
-                    }
-                }
-            }
-
-            if (FD_ISSET(key2_fd, &rfds)) {
-                cJSON *root;
-                char *str;
-                ms_stat_t st;
-                int ret;
-
-                root = cJSON_CreateObject();
-                sddc_return_if_fail(root);
-
-                cJSON_AddStringToObject(root, "cmd", "recv");
-
-                ret = ms_io_stat(__SEND_IMAGE_FILENAME, &st);
-                sddc_goto_error_if_fail(ret == 0);
-                cJSON_AddNumberToObject(root, "size", st.st_size);
-
-                sddc_printf("Send picture to EdgerOS, file size %ld\n", st.st_size);
-
-                str = cJSON_Print(root);
-                sddc_goto_error_if_fail(str);
-
-                sddc_broadcast_message(sddc, str, strlen(str), 1, MS_FALSE, MS_NULL);
-                cJSON_free(str);
-
-error:
-                cJSON_Delete(root);
-            }
-        }
-    }
-}
-
-/*
- * handle MESSAGE ACK
+ * Handle MESSAGE ACK
  */
 static void iot_pi_on_message_ack(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
 }
 
 /*
- * handle MESSAGE lost
+ * Handle MESSAGE lost
  */
 static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, uint16_t seqno)
 {
 }
 
 /*
- * handle EdgerOS lost
+ * Handle EdgerOS lost
  */
 static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
 {
 }
 
 /*
- * handle UPDATE
+ * Handle UPDATE
  */
 static sddc_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *udpate_data, size_t len)
 {
@@ -317,7 +258,7 @@ error:
 }
 
 /*
- * handle INVITE
+ * Handle INVITE
  */
 static sddc_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, size_t len)
 {
@@ -347,7 +288,7 @@ error:
 }
 
 /*
- * handle the end of INVITE
+ * Handle the end of INVITE
  */
 static sddc_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {
@@ -429,6 +370,178 @@ static char *iot_pi_invite_data_create(void)
 }
 
 /*
+ * IoT Pi key scan thread
+ */
+static void iot_pi_key_thread(ms_ptr_t arg)
+{
+    fd_set  rfds;
+    sddc_t *sddc = arg;
+    ms_uint8_t key1_press = 0;
+    ms_uint64_t key1_press_begin = 0;
+    ms_bool_t smart_config = MS_FALSE;
+    struct timeval tv;
+    struct ifreq ifreq;
+    int ret;
+
+    while (1) {
+        if (ioctl(sockfd, SIOCGIFADDR, &ifreq) == 0) {
+            smart_config = MS_FALSE;
+        }
+
+        if (smart_config) {
+            FD_ZERO(&rfds);
+            FD_SET(key1_fd, &rfds);
+
+            tv.tv_sec  = 1;
+            tv.tv_usec = 0;
+
+            ret = select(key1_fd + 1, &rfds, MS_NULL, MS_NULL, &tv);
+            if (ret > 0) {
+                key1_press++;
+                if (key1_press == 1) {
+                    key1_press_begin = ms_time_get_ms();
+
+                } else if (key1_press == 3) {
+                    key1_press = 0;
+
+                    if ((ms_time_get_ms() - key1_press_begin) < 800) {
+                        sddc_printf("Stop smart configure...\n");
+                        smart_config = MS_FALSE;
+                        ifreq.ifr_flags = 0;
+                        ioctl(sockfd, SIOCSIFPFLAGS, &ifreq);
+                        continue;
+                    }
+                }
+            } else if (ret == 0) {
+                ms_io_write(led1_fd, &led_state_bak[0], 1);
+                led_state_bak[0] = !led_state_bak[0];
+
+                ms_io_write(led2_fd, &led_state_bak[1], 1);
+                led_state_bak[1] = !led_state_bak[1];
+
+                ms_io_write(led3_fd, &led_state_bak[2], 1);
+                led_state_bak[2] = !led_state_bak[2];
+            }
+        } else {
+            FD_ZERO(&rfds);
+            FD_SET(key1_fd, &rfds);
+            FD_SET(key2_fd, &rfds);
+            FD_SET(key3_fd, &rfds);
+
+            ret = select(key3_fd + 1, &rfds, MS_NULL, MS_NULL, MS_NULL);
+            if (ret > 0) {
+                if (FD_ISSET(key1_fd, &rfds)) {
+                    key1_press++;
+                    if (key1_press == 1) {
+                        key1_press_begin = ms_time_get_ms();
+
+                    } else if (key1_press == 3) {
+                        key1_press = 0;
+
+                        if ((ms_time_get_ms() - key1_press_begin) < 800) {
+                            sddc_printf("Start smart configure...\n");
+                            smart_config = MS_TRUE;
+
+                            led_state_bak[0] = 0;
+                            ms_io_write(led1_fd, &led_state_bak[0], 1);
+                            led_state_bak[0] = !led_state_bak[0];
+
+                            led_state_bak[1] = 0;
+                            ms_io_write(led2_fd, &led_state_bak[1], 1);
+                            led_state_bak[1] = !led_state_bak[1];
+
+                            led_state_bak[2] = 0;
+                            ms_io_write(led3_fd, &led_state_bak[2], 1);
+                            led_state_bak[2] = !led_state_bak[2];
+
+                            ifreq.ifr_flags = 1;
+                            ioctl(sockfd, SIOCSIFPFLAGS, &ifreq);
+                            continue;
+                        }
+                    }
+                }
+
+                if (FD_ISSET(key2_fd, &rfds)) {
+                    cJSON *root;
+                    char *str;
+                    ms_stat_t st;
+                    int ret;
+
+                    root = cJSON_CreateObject();
+                    sddc_return_if_fail(root);
+
+                    cJSON_AddStringToObject(root, "cmd", "recv");
+
+                    ret = ms_io_stat(__SEND_IMAGE_FILENAME, &st);
+                    sddc_goto_error_if_fail(ret == 0);
+                    cJSON_AddNumberToObject(root, "size", st.st_size);
+
+                    sddc_printf("Send picture to EdgerOS, file size %ld\n", st.st_size);
+
+                    str = cJSON_Print(root);
+                    sddc_goto_error_if_fail(str);
+
+                    sddc_broadcast_message(sddc, str, strlen(str), 1, MS_FALSE, MS_NULL);
+                    cJSON_free(str);
+
+error:
+                    cJSON_Delete(root);
+
+                    key1_press = 0;
+                }
+
+                if (FD_ISSET(key3_fd, &rfds)) {
+                    key1_press = 0;
+                }
+            }
+        }
+    }
+}
+
+/*
+ * Initialize IoT Pi led
+ */
+static int iot_pi_led_init(void)
+{
+    ms_gpio_param_t param;
+
+    /*
+     * Open leds
+     */
+    led1_fd = ms_io_open("/dev/led1", O_WRONLY, 0666);
+    sddc_return_value_if_fail(led1_fd >= 0, -1);
+
+    led2_fd = ms_io_open("/dev/led2", O_WRONLY, 0666);
+    sddc_return_value_if_fail(led2_fd >= 0, -1);
+
+    led3_fd = ms_io_open("/dev/led3", O_WRONLY, 0666);
+    sddc_return_value_if_fail(led3_fd >= 0, -1);
+
+    /*
+     * Set gpio output mode
+     */
+    param.mode  = MS_GPIO_MODE_OUTPUT_PP;
+    param.pull  = MS_GPIO_PULL_UP;
+    param.speed = MS_GPIO_SPEED_HIGH;
+    ms_io_ioctl(led1_fd, MS_GPIO_CMD_SET_PARAM, &param);
+    ms_io_ioctl(led2_fd, MS_GPIO_CMD_SET_PARAM, &param);
+    ms_io_ioctl(led3_fd, MS_GPIO_CMD_SET_PARAM, &param);
+
+    /*
+     * Read led state
+     */
+    ms_io_read(led1_fd, &led_state_bak[0], 1);
+    ms_io_read(led2_fd, &led_state_bak[1], 1);
+    ms_io_read(led3_fd, &led_state_bak[2], 1);
+
+    led_state_bak[0] = !led_state_bak[0];
+    led_state_bak[1] = !led_state_bak[1];
+    led_state_bak[2] = !led_state_bak[2];
+
+    return 0;
+}
+
+/*
  * Initialize IoT Pi key
  */
 static int iot_pi_key_init(void)
@@ -469,13 +582,19 @@ int main(int argc, char *argv[])
     int ret;
 
     /*
+     * Initialize IoT Pi led
+     */
+    ret = iot_pi_led_init();
+    sddc_return_value_if_fail(ret == 0, -1);
+
+    /*
      * Initialize IoT Pi key
      */
     ret = iot_pi_key_init();
     sddc_return_value_if_fail(ret == 0, -1);
 
     /*
-     * Set network implement 
+     * Set network implement
      */
 #ifdef SDDC_CFG_NET_IMPL
     ret = ms_net_set_impl(SDDC_CFG_NET_IMPL);

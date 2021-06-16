@@ -154,7 +154,7 @@ static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
 }
 
 /*
- * handle UPDATE
+ * Handle UPDATE
  */
 static sddc_bool_t iot_pi_on_update(sddc_t *sddc, const uint8_t *uid, const char *udpate_data, size_t len)
 {
@@ -184,7 +184,7 @@ error:
 }
 
 /*
- * handle INVITE
+ * Handle INVITE
  */
 static sddc_bool_t iot_pi_on_invite(sddc_t *sddc, const uint8_t *uid, const char *invite_data, size_t len)
 {
@@ -214,7 +214,7 @@ error:
 }
 
 /*
- * handle the end of INVITE
+ * Handle the end of INVITE
  */
 static sddc_bool_t iot_pi_on_invite_end(sddc_t *sddc, const uint8_t *uid)
 {
@@ -306,21 +306,25 @@ static void iot_pi_key_thread(ms_ptr_t arg)
     sddc_t *sddc = arg;
     ms_uint8_t key1_press = 0;
     ms_uint64_t key1_press_begin = 0;
+    ms_bool_t smart_config = MS_FALSE;
+    struct timeval tv;
+    struct ifreq ifreq;
+    int ret;
 
     while (1) {
-        FD_ZERO(&rfds);
-        FD_SET(key1_fd, &rfds);
-        FD_SET(key2_fd, &rfds);
-        FD_SET(key3_fd, &rfds);
+        if (ioctl(sockfd, SIOCGIFADDR, &ifreq) == 0) {
+            smart_config = MS_FALSE;
+        }
 
-        if (select(key3_fd + 1, &rfds, MS_NULL, MS_NULL, MS_NULL) > 0) {
-            cJSON *root;
-            char *str;
+        if (smart_config) {
+            FD_ZERO(&rfds);
+            FD_SET(key1_fd, &rfds);
 
-            root = cJSON_CreateObject();
-            sddc_return_if_fail(root);
+            tv.tv_sec  = 1;
+            tv.tv_usec = 0;
 
-            if (FD_ISSET(key1_fd, &rfds)) {
+            ret = select(key1_fd + 1, &rfds, MS_NULL, MS_NULL, &tv);
+            if (ret > 0) {
                 key1_press++;
                 if (key1_press == 1) {
                     key1_press_begin = ms_time_get_ms();
@@ -329,54 +333,104 @@ static void iot_pi_key_thread(ms_ptr_t arg)
                     key1_press = 0;
 
                     if ((ms_time_get_ms() - key1_press_begin) < 800) {
-                        static struct ifreq ifreq;
-
-                        ifreq.ifr_flags = !ifreq.ifr_flags;
-
-                        if (ifreq.ifr_flags) {
-                            sddc_printf("Start smart configure...\n");
-                        } else {
-                            sddc_printf("Stop smart configure...\n");
-                        }
+                        sddc_printf("Stop smart configure...\n");
+                        smart_config = MS_FALSE;
+                        ifreq.ifr_flags = 0;
                         ioctl(sockfd, SIOCSIFPFLAGS, &ifreq);
                         continue;
                     }
                 }
-
-                cJSON_AddBoolToObject(root, "key1", MS_TRUE);
-
+            } else if (ret == 0) {
                 ms_io_write(led1_fd, &led_state_bak[0], 1);
                 led_state_bak[0] = !led_state_bak[0];
-                cJSON_AddBoolToObject(root, "led1", led_state_bak[0]);
-            }
-
-            if (FD_ISSET(key2_fd, &rfds)) {
-                cJSON_AddBoolToObject(root, "key2", MS_TRUE);
 
                 ms_io_write(led2_fd, &led_state_bak[1], 1);
                 led_state_bak[1] = !led_state_bak[1];
-                cJSON_AddBoolToObject(root, "led2", led_state_bak[1]);
-
-                key1_press = 0;
-            }
-
-            if (FD_ISSET(key3_fd, &rfds)) {
-                cJSON_AddBoolToObject(root, "key3", MS_TRUE);
 
                 ms_io_write(led3_fd, &led_state_bak[2], 1);
                 led_state_bak[2] = !led_state_bak[2];
-                cJSON_AddBoolToObject(root, "led3", led_state_bak[2]);
-
-                key1_press = 0;
             }
+        } else {
+            FD_ZERO(&rfds);
+            FD_SET(key1_fd, &rfds);
+            FD_SET(key2_fd, &rfds);
+            FD_SET(key3_fd, &rfds);
 
-            str = cJSON_Print(root);
-            sddc_return_if_fail(str);
+            ret = select(key3_fd + 1, &rfds, MS_NULL, MS_NULL, MS_NULL);
+            if (ret > 0) {
+                cJSON *root;
+                char *str;
 
-            sddc_broadcast_message(sddc, str, strlen(str), 1, MS_FALSE, MS_NULL);
-            cJSON_free(str);
+                root = cJSON_CreateObject();
+                sddc_return_if_fail(root);
 
-            cJSON_Delete(root);
+                if (FD_ISSET(key1_fd, &rfds)) {
+                    key1_press++;
+                    if (key1_press == 1) {
+                        key1_press_begin = ms_time_get_ms();
+
+                    } else if (key1_press == 3) {
+                        key1_press = 0;
+
+                        if ((ms_time_get_ms() - key1_press_begin) < 800) {
+                            sddc_printf("Start smart configure...\n");
+                            smart_config = MS_TRUE;
+
+                            led_state_bak[0] = 0;
+                            ms_io_write(led1_fd, &led_state_bak[0], 1);
+                            led_state_bak[0] = !led_state_bak[0];
+
+                            led_state_bak[1] = 0;
+                            ms_io_write(led2_fd, &led_state_bak[1], 1);
+                            led_state_bak[1] = !led_state_bak[1];
+
+                            led_state_bak[2] = 0;
+                            ms_io_write(led3_fd, &led_state_bak[2], 1);
+                            led_state_bak[2] = !led_state_bak[2];
+
+                            ifreq.ifr_flags = 1;
+                            ioctl(sockfd, SIOCSIFPFLAGS, &ifreq);
+
+                            cJSON_Delete(root);
+                            continue;
+                        }
+                    }
+
+                    cJSON_AddBoolToObject(root, "key1", MS_TRUE);
+
+                    ms_io_write(led1_fd, &led_state_bak[0], 1);
+                    led_state_bak[0] = !led_state_bak[0];
+                    cJSON_AddBoolToObject(root, "led1", led_state_bak[0]);
+                }
+
+                if (FD_ISSET(key2_fd, &rfds)) {
+                    cJSON_AddBoolToObject(root, "key2", MS_TRUE);
+
+                    ms_io_write(led2_fd, &led_state_bak[1], 1);
+                    led_state_bak[1] = !led_state_bak[1];
+                    cJSON_AddBoolToObject(root, "led2", led_state_bak[1]);
+
+                    key1_press = 0;
+                }
+
+                if (FD_ISSET(key3_fd, &rfds)) {
+                    cJSON_AddBoolToObject(root, "key3", MS_TRUE);
+
+                    ms_io_write(led3_fd, &led_state_bak[2], 1);
+                    led_state_bak[2] = !led_state_bak[2];
+                    cJSON_AddBoolToObject(root, "led3", led_state_bak[2]);
+
+                    key1_press = 0;
+                }
+
+                str = cJSON_Print(root);
+                sddc_return_if_fail(str);
+
+                sddc_broadcast_message(sddc, str, strlen(str), 1, MS_FALSE, MS_NULL);
+                cJSON_free(str);
+
+                cJSON_Delete(root);
+            }
         }
     }
 }
