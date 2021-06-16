@@ -1375,7 +1375,7 @@ int sddc_connector_put(sddc_connector_t *connector, const void *data, size_t len
 
     sddc_return_value_if_fail(connector && (connector->sockfd >= 0) && !connector->get_mode, -1);
     sddc_return_value_if_fail((!data && !len) || (data && len), -1);
-    sddc_return_value_if_fail(len <= (SDDC_CFG_SEND_BUF_SIZE - sizeof(sddc_header_t) - 16), -1);
+    sddc_return_value_if_fail(len <= (SDDC_CFG_SEND_BUF_SIZE - 16), -1);
 
 #if SDDC_CFG_SECURITY_EN > 0
     if (connector->security_en) {
