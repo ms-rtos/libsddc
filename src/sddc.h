@@ -27,27 +27,27 @@ typedef uint8_t sddc_bool_t;
 #define SDDC_FALSE          0U
 
 #if SDDC_CFG_CRIT_EN > 0
-#define SDDC_LOG_CRIT(...) do {                                  \
-    sddc_printf("[SDDC] %s %d CRIT: ", __FUNCTION__, __LINE__);  \
-    sddc_printf(__VA_ARGS__);                                    \
+#define SDDC_LOG_CRIT(...) do {                             \
+    sddc_printf("[SDDC] %s %d CRIT: ", __func__, __LINE__); \
+    sddc_printf(__VA_ARGS__);                               \
 } while (0)
 #else
 #define SDDC_LOG_CRIT(...)
 #endif
 
 #if SDDC_CFG_ERR_EN > 0
-#define SDDC_LOG_ERR(...) do {                                  \
-    sddc_printf("[SDDC] %s %d ERR: ", __FUNCTION__, __LINE__);  \
-    sddc_printf(__VA_ARGS__);                                   \
+#define SDDC_LOG_ERR(...) do {                              \
+    sddc_printf("[SDDC] %s %d ERR: ", __func__, __LINE__);  \
+    sddc_printf(__VA_ARGS__);                               \
 } while (0)
 #else
 #define SDDC_LOG_ERR(...)
 #endif
 
 #if SDDC_CFG_WARN_EN > 0
-#define SDDC_LOG_WARN(...) do {                                  \
-    sddc_printf("[SDDC] %s %d WARN: ", __FUNCTION__, __LINE__);  \
-    sddc_printf(__VA_ARGS__);                                    \
+#define SDDC_LOG_WARN(...) do {                             \
+    sddc_printf("[SDDC] %s %d WARN: ", __func__, __LINE__); \
+    sddc_printf(__VA_ARGS__);                               \
 } while (0)
 #else
 #define SDDC_LOG_WARN(...)
