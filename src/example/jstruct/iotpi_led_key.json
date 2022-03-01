@@ -1,0 +1,14 @@
+{
+	"name": "iotpi_led_key",
+	"struct": {
+		"name": "led_key",
+		"member": [
+			{ "key": "led1", "type": "bool",   "req": false },
+			{ "key": "led2", "type": "bool",   "req": false },
+			{ "key": "led3", "type": "bool",   "req": false },
+			{ "key": "key1", "type": "bool",   "req": false },
+			{ "key": "key2", "type": "bool",   "req": false },
+			{ "key": "key3", "type": "bool",   "req": false }
+		]
+	}
+}

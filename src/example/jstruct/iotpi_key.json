@@ -1,0 +1,11 @@
+{
+	"name": "iotpi_key",
+	"struct": {
+		"name": "key",
+		"member": [
+			{ "key": "key1", "type": "bool",   "req": false },
+			{ "key": "key2", "type": "bool",   "req": false },
+			{ "key": "key3", "type": "bool",   "req": false }
+		]
+	}
+}
