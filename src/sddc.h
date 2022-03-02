@@ -103,7 +103,7 @@ typedef uint8_t sddc_bool_t;
 
 #ifdef __MS_RTOS__
 #include "sddc_msrtos.h"
-#elif defined(SYLIXOS)
+#elif defined(SYLIXOS) || defined(__linux__)
 #include "sddc_posix.h"
 #elif defined(__FREERTOS__)
 #include "sddc_freertos.h"

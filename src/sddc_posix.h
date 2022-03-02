@@ -56,4 +56,19 @@ static inline int sddc_mutex_unlock(sddc_mutex_t *mutex)
     return pthread_mutex_unlock(mutex);
 }
 
+#ifdef __linux__
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <string.h>
+
+#define IP4ADDR_STRLEN_MAX sizeof("255.255.255.255")
+
+static inline char *inet_ntoa_r(struct in_addr in, char *buf, socklen_t size)
+{
+    strncpy(buf, inet_ntoa(in), size);
+
+    return buf;
+}
+#endif
+
 #endif /* SDDC_POSIX_H */

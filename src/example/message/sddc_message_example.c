@@ -10,7 +10,16 @@
  *
  */
 
+#ifdef __MS_RTOS__
 #include <ms_rtos.h>
+#elif defined(__linux__)
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+
+#define SDDC_LINUX_CFG_NETIF_NAME "eth0"
+#endif
 #include "sddc.h"
 #include "cJSON.h"
 
@@ -213,7 +222,7 @@ int main(int argc, char *argv[])
     /*
      * Set network implement 
      */
-#ifdef SDDC_CFG_NET_IMPL
+#if defined(__MS_RTOS__) && defined(SDDC_CFG_NET_IMPL)
     ret = ms_net_set_impl(SDDC_CFG_NET_IMPL);
     sddc_return_value_if_fail(ret == MS_ERR_NONE, -1);
 #endif
@@ -263,20 +272,24 @@ int main(int argc, char *argv[])
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     sddc_return_value_if_fail(sockfd >= 0, -1);
 
+#if defined(__linux__) && defined(SDDC_LINUX_CFG_NETIF_NAME)
+    strcpy(ifreq.ifr_name, SDDC_LINUX_CFG_NETIF_NAME); 
+#endif
+
     ioctl(sockfd, SIOCGIFHWADDR, &ifreq);
 
     sddc_printf("MAC addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
-              (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[0],
-              (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[1],
-              (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[2],
-              (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[3],
-              (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[4],
-              (ms_uint8_t)ifreq.ifr_hwaddr.sa_data[5]);
+              (uint8_t)ifreq.ifr_hwaddr.sa_data[0],
+              (uint8_t)ifreq.ifr_hwaddr.sa_data[1],
+              (uint8_t)ifreq.ifr_hwaddr.sa_data[2],
+              (uint8_t)ifreq.ifr_hwaddr.sa_data[3],
+              (uint8_t)ifreq.ifr_hwaddr.sa_data[4],
+              (uint8_t)ifreq.ifr_hwaddr.sa_data[5]);
 
     /*
      * Set uid
      */
-    sddc_set_uid(sddc, (const ms_uint8_t *)ifreq.ifr_hwaddr.sa_data);
+    sddc_set_uid(sddc, (const uint8_t *)ifreq.ifr_hwaddr.sa_data);
 
     /*
      * Get and print ip address
