@@ -42,11 +42,11 @@
 
 /* Header type set and get */
 #define SDDC_SET_TYPE(h, type)  \
-        ((h)->flags_type) &= 0xe0; \
+        ((h)->flags_type) &= 0xf0; \
         ((h)->flags_type) |= (type)
 
 #define SDDC_GET_TYPE(h) \
-        ((h)->flags_type & 0x1f)
+        ((h)->flags_type & 0x0f)
 
 /* Header flags */
 #define SDDC_FLAG_NONE          0x00
