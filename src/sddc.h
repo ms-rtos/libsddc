@@ -20,7 +20,7 @@ extern "C" {
 #include "sddc_config.h"
 #include <stdint.h>
 
-#define LIBSDDC_VERSION     110U
+#define LIBSDDC_VERSION     120U
 
 typedef uint8_t sddc_bool_t;
 #define SDDC_TRUE           1U
@@ -200,6 +200,7 @@ typedef uint8_t sddc_bool_t;
  *  INVITE      YES
  *  PING        NO
  *  MESSAGE     YES
+ *  TIMESTAMP   NO
  */
 
 /* Header uid length */
@@ -274,6 +275,15 @@ typedef void (*sddc_on_message_ack_t)(sddc_t *sddc, const uint8_t *uid, uint16_t
 typedef void (*sddc_on_message_lost_t)(sddc_t *sddc, const uint8_t *uid, uint16_t seqno);
 
 /**
+ * @brief Callback function on receive TIMESTAMP respond.
+ *
+ * @param[in] uid           Pointer to EdgerOS UID
+ * @param[in] message       Pointer to message data
+ * @param[in] len           The length of message data
+ */
+typedef void (*sddc_on_timestamp_t)(sddc_t *sddc, const uint8_t *uid, const char *message, size_t len);
+
+/**
  * @brief Callback function on EdgerOS disconnection.
  *
  * @param[in] uid           Pointer to EdgerOS UID
@@ -339,6 +349,16 @@ int sddc_set_on_message_lost(sddc_t *sddc, sddc_on_message_lost_t on_message_los
  * @return Error number
  */
 int sddc_set_on_edgeros_lost(sddc_t *sddc, sddc_on_edgeros_lost_t on_edgeros_lost);
+
+/**
+ * @brief Set callback function of on receive TIMESTAMP ack.
+ *
+ * @param[in] sddc              Pointer to SDDC
+ * @param[in] on_timestamp      callback function
+ *
+ * @return Error number
+ */
+int sddc_set_on_timestamp(sddc_t *sddc, sddc_on_timestamp_t on_timestamp);
 
 /**
  * @brief Set callback function of on receive INVITE request.
@@ -453,6 +473,16 @@ int sddc_broadcast_message(sddc_t *sddc,
                            const void *payload, size_t payload_len,
                            uint8_t retries, sddc_bool_t urgent,
                            uint16_t *seqno);
+
+/**
+ * @brief Send timestamp request to a specified EdgerOS which connected.
+ *
+ * @param[in] sddc          Pointer to SDDC
+ * @param[in] uid           Pointer to EdgerOS UID
+ *
+ * @return Error number
+ */
+int sddc_send_timestamp_request(sddc_t *sddc, const uint8_t *uid);
 
 /**
  * @brief Create a SDDC connector.

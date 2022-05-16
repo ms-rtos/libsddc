@@ -26,6 +26,8 @@ static int sockfd;
 
 static ms_bool_t led_state_bak[3];
 
+#define IOT_PI_TIME_THREAD_EN   1
+
 /*
  * Report IoT Pi led state
  */
@@ -152,6 +154,42 @@ static void iot_pi_on_message_lost(sddc_t *sddc, const uint8_t *uid, uint16_t se
 static void iot_pi_on_edgeros_lost(sddc_t *sddc, const uint8_t *uid)
 {
 }
+
+#if IOT_PI_TIME_THREAD_EN > 0
+/*
+ * Handle TIMESTAMP ack
+ */
+static void iot_pi_on_timestamp(sddc_t *sddc, const uint8_t *uid, const char *message, ms_size_t len)
+{
+    cJSON *root = cJSON_Parse(message);
+    cJSON *timestamp, *utc, *tz;
+    char *str;
+
+    sddc_return_if_fail(root);
+
+    str = cJSON_Print(root);
+    sddc_goto_error_if_fail(str);
+
+    sddc_printf("iot_pi_on_timestamp: %s\n", str);
+    cJSON_free(str);
+
+    timestamp = cJSON_GetObjectItem(root, "timestamp");
+    if (cJSON_IsObject(timestamp)) {
+        utc = cJSON_GetObjectItem(timestamp, "utc");
+        if (cJSON_IsNumber(utc)) {
+
+        }
+
+        tz = cJSON_GetObjectItem(timestamp, "tz");
+        if (cJSON_IsNumber(tz)) {
+
+        }
+    }
+
+error:
+    cJSON_Delete(root);
+}
+#endif
 
 /*
  * Handle UPDATE
@@ -435,6 +473,22 @@ static void iot_pi_key_thread(ms_ptr_t arg)
     }
 }
 
+#if IOT_PI_TIME_THREAD_EN > 0
+/*
+ * IoT Pi time thread
+ */
+static void iot_pi_time_thread(ms_ptr_t arg)
+{
+    sddc_t *sddc = arg;
+
+    while (1) {
+        ms_thread_sleep_s(5);
+
+        sddc_send_timestamp_request(sddc, NULL);
+    }
+}
+#endif
+
 /*
  * Initialize IoT Pi led
  */
@@ -554,6 +608,9 @@ int main(int argc, char *argv[])
     sddc_set_on_invite_end(sddc, iot_pi_on_invite_end);
     sddc_set_on_update(sddc, iot_pi_on_update);
     sddc_set_on_edgeros_lost(sddc, iot_pi_on_edgeros_lost);
+#if IOT_PI_TIME_THREAD_EN > 0
+    sddc_set_on_timestamp(sddc, iot_pi_on_timestamp);
+#endif
 
     /*
      * Set token
@@ -623,6 +680,21 @@ int main(int argc, char *argv[])
                            MS_THREAD_OPT_USER | MS_THREAD_OPT_REENT_EN,
                            MS_NULL);
     sddc_return_value_if_fail(ret == MS_ERR_NONE, -1);
+
+#if IOT_PI_TIME_THREAD_EN > 0
+    /*
+     * Create time thread
+     */
+    ret = ms_thread_create("t_time",
+                           iot_pi_time_thread,
+                           sddc,
+                           2048U,
+                           30U,
+                           70U,
+                           MS_THREAD_OPT_USER | MS_THREAD_OPT_REENT_EN,
+                           MS_NULL);
+    sddc_return_value_if_fail(ret == MS_ERR_NONE, -1);
+#endif
 
     /*
      * SDDC run
