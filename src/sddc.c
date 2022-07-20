@@ -684,11 +684,17 @@ static void __sddc_read_handle(sddc_t *sddc)
         void           *payload;
         int             unpack_ret;
         uint8_t         flag_type;
+        uint16_t        src_port = ntohs(cli_addr.sin_port);
+
+        inet_ntoa_r(cli_addr.sin_addr, ip_str, sizeof(ip_str));
+
+        if (src_port != SDDC_CFG_PORT) {
+            SDDC_LOG_ERR("Receive packet source port error, from: %s:%d.\n", ip_str, src_port);
+            return;
+        }
 
         header->seqno  = ntohs(header->seqno);
         header->length = ntohs(header->length);
-
-        inet_ntoa_r(cli_addr.sin_addr, ip_str, sizeof(ip_str));
 
         sddc_mutex_lock(&sddc->lockid);
 
