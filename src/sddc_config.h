@@ -21,7 +21,7 @@
 
 #define SDDC_CFG_MQUEUE_SIZE            6U
 #define SDDC_CFG_RETRIES_INTERVAL       500U  /* MS */
-#define SDDC_CFG_EDGEROS_ALIVE          40U   /* RETRIES_INTERVAL */
+#define SDDC_CFG_EDGEROS_ALIVE          24U   /* RETRIES_INTERVAL */
 #define SDDC_CFG_CONNECTOR_TIMEOUT      5000U /* MS */
 
 #define SDDC_CFG_DBG_EN                 1U
@@ -31,6 +31,8 @@
 #define SDDC_CFG_INFO_EN                1U
 
 #define SDDC_CFG_SECURITY_EN            1U
+
+#define SDDC_CFG_MULTI_EDGEROS_JOIN_EN  0U
 
 /* Define __FREERTOS__ if use FreeRTOS */
 #undef __FREERTOS__
