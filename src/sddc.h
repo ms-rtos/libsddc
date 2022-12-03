@@ -152,7 +152,7 @@ typedef uint8_t sddc_bool_t;
  *          "name":<String>, "Printer", "Patch panel", "Air conditioning"...
  *          "type":<String>, "monitor", "edger", "device"
  *          "excl":<Boolean> (This Device is App Exclusive)
- *          "desc":<String>, (Device Documents URL)
+ *          "desc":<String>, (Device description)
  *          "model":<String>, (Product Model)
  *          "vendor":<String> (Manufacturer Name)
  *          "sn":<String>, (Product Serial Numbber optional)
@@ -179,7 +179,11 @@ typedef uint8_t sddc_bool_t;
  *              ...
  *          ],
  *          "coap":[
- *              { "port":<Integer> },
+ *              { "desc":"...", "port":<Integer> },
+ *              ...
+ *          ]
+ *          "vsoa":[
+ *              { "desc":"...", "port":<Integer> },
  *              ...
  *          ]
  *      },

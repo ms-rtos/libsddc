@@ -283,6 +283,7 @@ static char *iot_pi_report_data_create(void)
     cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
     cJSON_AddStringToObject(report, "model",  "1");
     cJSON_AddStringToObject(report, "vendor", "ACOINFO");
+    cJSON_AddStringToObject(report, "sn",     "123456");
 
     /*
      * Add extension here
@@ -324,6 +325,21 @@ static char *iot_pi_invite_data_create(void)
     /*
      * Add extension here
      */
+    /*
+     * See sddc.h Update and Invite Data example
+     *
+    cJSON *server = cJSON_CreateObject();
+    cJSON_AddItemToObject(root, "server", server);
+
+    cJSON *vsoa = cJSON_CreateArray();
+    cJSON_AddItemToObject(server, "vsoa", vsoa);
+
+    cJSON *vsoa_xxx_server = cJSON_CreateObject();
+    cJSON_AddStringToObject(vsoa_xxx_server, "desc", "vsoa xxx server");
+    cJSON_AddNumberToObject(vsoa_xxx_server, "port",  1234);
+
+    cJSON_AddItemToArray(vsoa, vsoa_xxx_server);
+    */
 
     str = cJSON_Print(root);
     sddc_return_value_if_fail(str, NULL);
