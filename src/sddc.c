@@ -123,7 +123,7 @@ struct sddc_context {
     size_t                          report_data_len;
     const char *                    invite_data;
     size_t                          invite_data_len;
-    const char *                    abort_data;
+    char *                          abort_data;
     size_t                          abort_data_len;
     sddc_on_invite_t                on_invite;
     sddc_on_invite_end_t            on_invite_end;
@@ -214,6 +214,8 @@ int sddc_set_token(sddc_t *sddc, const char *token)
     sddc->cipher_info = mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_CBC);
 
     sddc->security_en = SDDC_TRUE;
+
+    sddc_set_abort_data(sddc, SDDC_DEF_ABORT_DATA, SDDC_DEF_ABORT_DATA_LEN);
 
     return 0;
 }
@@ -508,6 +510,12 @@ int sddc_set_abort_data(sddc_t *sddc, const char *abort_data, size_t len)
     sddc_return_value_if_fail(sddc && abort_data && len, -1);
     sddc_return_value_if_fail(len <= (sizeof(sddc->send_buf) - sizeof(sddc_header_t) - 16), -1);
 
+    if (sddc->abort_data) {
+        sddc_free((void *)sddc->abort_data);
+        sddc->abort_data = NULL;
+        sddc->abort_data_len = 0;
+    }
+
 #if SDDC_CFG_SECURITY_EN > 0
     if (sddc->security_en) {
         sddc->abort_data = sddc_malloc(len + 16);
@@ -519,8 +527,11 @@ int sddc_set_abort_data(sddc_t *sddc, const char *abort_data, size_t len)
     } else
 #endif
     {
-        sddc->abort_data     = abort_data;
+        sddc->abort_data = sddc_malloc(len);
+        sddc_return_value_if_fail(sddc->abort_data, -1);
+
         sddc->abort_data_len = len;
+        memcpy(sddc->abort_data, abort_data, len);
     }
 
     return 0;
@@ -543,11 +554,9 @@ int sddc_destroy(sddc_t *sddc)
     }
 #endif
 
-#if SDDC_CFG_SECURITY_EN > 0
-    if (sddc->security_en) {
+    if (sddc->abort_data) {
         sddc_free((void *)sddc->abort_data);
     }
-#endif
 
     close(sddc->fd);
     sddc_mutex_destroy(&sddc->lockid);
@@ -567,6 +576,7 @@ sddc_t *sddc_create(uint16_t port)
 {
     sddc_t            *sddc;
     struct sockaddr_in serv_addr;
+    int                broadcast = 1;
 
     sddc_return_value_if_fail(port, NULL);
 
@@ -587,7 +597,7 @@ sddc_t *sddc_create(uint16_t port)
         return NULL;
     }
 
-    sddc->fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    sddc->fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sddc->fd < 0) {
         SDDC_LOG_ERR("Failed to create socket!\n");
         sddc_mutex_destroy(&sddc->lockid);
@@ -599,6 +609,9 @@ sddc_t *sddc_create(uint16_t port)
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_addr.sin_port = htons(port);
+#if !defined(__linux__)
+    serv_addr.sin_len  = sizeof(struct sockaddr_in);
+#endif
 
     if (bind(sddc->fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         SDDC_LOG_ERR("Failed to bind port %u!\n", (unsigned)port);
@@ -606,11 +619,9 @@ sddc_t *sddc_create(uint16_t port)
         return NULL;
     }
 
-    if (sddc_set_abort_data(sddc, SDDC_DEF_ABORT_DATA, SDDC_DEF_ABORT_DATA_LEN) < 0) {
-        SDDC_LOG_ERR("Failed to set default abort data!\n");
-        sddc_destroy(sddc);
-        return NULL;
-    }
+    setsockopt(sddc->fd, SOL_SOCKET, SO_BROADCAST, (const char *)&broadcast, sizeof(broadcast));
+
+    sddc_set_abort_data(sddc, SDDC_DEF_ABORT_DATA, SDDC_DEF_ABORT_DATA_LEN);
 
     return sddc;
 }
@@ -778,26 +789,7 @@ static void __sddc_read_handle(sddc_t *sddc)
         case SDDC_TYPE_PING:                                        /* PING                 */
             if (header->flags_type & SDDC_FLAG_REQ) {               /* PING request         */
                 SDDC_LOG_DBG("Receive ping from: %s.\n", ip_str);
-
-                if (edgeros) {
-                    /*
-                     * Build PING respond
-                     */
-                    len = __sddc_build_packet(sddc, sddc->send_buf,
-                                              SDDC_TYPE_PING,
-                                              SDDC_FLAG_ACK,
-                                              SDDC_SEC_FLAG_NONE,
-                                              header->seqno,
-                                              NULL, 0);
-
-                    /*
-                     * Send PING respond to EdgerOS
-                     */
-                    sendto(sddc->fd, sddc->send_buf, len, 0,
-                           (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
-
-                    SDDC_LOG_DBG("Send ping respond to: %s.\n", ip_str);
-                } else {
+                if (!edgeros && (header->flags_type & SDDC_FLAG_JOIN)) {
                     /*
                      * Build abort info
                      */
@@ -819,6 +811,24 @@ static void __sddc_read_handle(sddc_t *sddc)
                            (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
 
                     SDDC_LOG_DBG("Send abort info to: %s.\n", ip_str);
+                } else {
+                    /*
+                     * Build PING respond
+                     */
+                    len = __sddc_build_packet(sddc, sddc->send_buf,
+                                              SDDC_TYPE_PING,
+                                              SDDC_FLAG_ACK,
+                                              SDDC_SEC_FLAG_NONE,
+                                              header->seqno,
+                                              NULL, 0);
+
+                    /*
+                     * Send PING respond to EdgerOS
+                     */
+                    sendto(sddc->fd, sddc->send_buf, len, 0,
+                           (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+
+                    SDDC_LOG_DBG("Send ping respond to: %s.\n", ip_str);
                 }
             } else {
                 SDDC_LOG_DBG("Receive ping respond from: %s.\n", ip_str);
@@ -1455,10 +1465,13 @@ sddc_connector_t *sddc_connector_create(sddc_t *sddc, const uint8_t *uid, uint16
     dest_addr.sin_addr.s_addr = edgeros->addr.sin_addr.s_addr;
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_port = htons(port);
+#if !defined(__linux__)
+    dest_addr.sin_len  = sizeof(struct sockaddr_in);
+#endif
 
     sddc_mutex_unlock(&sddc->lockid);
 
-    connector->sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    connector->sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     sddc_goto_error_if_fail(connector->sockfd >= 0);
 
     setsockopt(connector->sockfd, SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof(struct timeval));

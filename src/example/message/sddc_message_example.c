@@ -12,13 +12,17 @@
 
 #ifdef __MS_RTOS__
 #include <ms_rtos.h>
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(SYLIXOS)
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-#define SDDC_LINUX_CFG_NETIF_NAME "eth0"
+#if defined(SYLIXOS)
+#define SDDC_CFG_NETIF_NAME "en1"
+#else
+#define SDDC_CFG_NETIF_NAME "eth0"
+#endif
 #endif
 #include "sddc.h"
 #include "cJSON.h"
@@ -158,6 +162,7 @@ static char *iot_pi_report_data_create(void)
     cJSON_AddStringToObject(report, "desc",   "翼辉 IoT Pi");
     cJSON_AddStringToObject(report, "model",  "1");
     cJSON_AddStringToObject(report, "vendor", "ACOINFO");
+    cJSON_AddStringToObject(report, "sn",     "123456");
 
     /*
      * Add extension here
@@ -287,8 +292,8 @@ int main(int argc, char *argv[])
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     sddc_return_value_if_fail(sockfd >= 0, -1);
 
-#if defined(__linux__) && defined(SDDC_LINUX_CFG_NETIF_NAME)
-    strcpy(ifreq.ifr_name, SDDC_LINUX_CFG_NETIF_NAME); 
+#if defined(SDDC_CFG_NETIF_NAME)
+    strcpy(ifreq.ifr_name, SDDC_CFG_NETIF_NAME); 
 #endif
 
     ioctl(sockfd, SIOCGIFHWADDR, &ifreq);

@@ -10,7 +10,20 @@
  *
  */
 
+#ifdef __MS_RTOS__
 #include <ms_rtos.h>
+#elif defined(__linux__) || defined(SYLIXOS)
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+
+#if defined(SYLIXOS)
+#define SDDC_CFG_NETIF_NAME "en1"
+#else
+#define SDDC_CFG_NETIF_NAME "eth0"
+#endif
+#endif
 #include "sddc.h"
 #include "cJSON.h"
 
@@ -612,7 +625,7 @@ int main(int argc, char *argv[])
     /*
      * Set network implement
      */
-#ifdef SDDC_CFG_NET_IMPL
+#if defined(__MS_RTOS__) && defined(SDDC_CFG_NET_IMPL)
     ret = ms_net_set_impl(SDDC_CFG_NET_IMPL);
     sddc_return_value_if_fail(ret == MS_ERR_NONE, -1);
 #endif
@@ -661,6 +674,10 @@ int main(int argc, char *argv[])
      */
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     sddc_return_value_if_fail(sockfd >= 0, -1);
+
+#if defined(SDDC_CFG_NETIF_NAME)
+    strcpy(ifreq.ifr_name, SDDC_CFG_NETIF_NAME); 
+#endif
 
     ioctl(sockfd, SIOCGIFHWADDR, &ifreq);
 
