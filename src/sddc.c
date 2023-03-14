@@ -77,6 +77,10 @@
             x = 0; \
         }
 
+/* Default abort data */
+#define SDDC_DEF_ABORT_DATA         "{\"abort\":{\"info\":\"power off\"}}"
+#define SDDC_DEF_ABORT_DATA_LEN     (sizeof(SDDC_DEF_ABORT_DATA) - 1)
+
 /* SDDC header */
 typedef struct {
     uint8_t             magic_ver;
@@ -119,6 +123,8 @@ struct sddc_context {
     size_t                          report_data_len;
     const char *                    invite_data;
     size_t                          invite_data_len;
+    const char *                    abort_data;
+    size_t                          abort_data_len;
     sddc_on_invite_t                on_invite;
     sddc_on_invite_end_t            on_invite_end;
     sddc_on_update_t                on_update;
@@ -489,6 +495,38 @@ int sddc_set_invite_data(sddc_t *sddc, const char *invite_data, size_t len)
 }
 
 /**
+ * @brief Set ABORT data.
+ *
+ * @param[in] sddc          Pointer to SDDC
+ * @param[in] abort_data    Pointer to ABORT data
+ * @param[in] len           The length to ABORT data
+ *
+ * @return Error number
+ */
+int sddc_set_abort_data(sddc_t *sddc, const char *abort_data, size_t len)
+{
+    sddc_return_value_if_fail(sddc && abort_data && len, -1);
+    sddc_return_value_if_fail(len <= (sizeof(sddc->send_buf) - sizeof(sddc_header_t) - 16), -1);
+
+#if SDDC_CFG_SECURITY_EN > 0
+    if (sddc->security_en) {
+        sddc->abort_data = sddc_malloc(len + 16);
+        sddc_return_value_if_fail(sddc->abort_data, -1);
+
+        return __sddc_encrypt(sddc, abort_data, len,
+                              (void *)sddc->abort_data, &sddc->abort_data_len);
+
+    } else
+#endif
+    {
+        sddc->abort_data     = abort_data;
+        sddc->abort_data_len = len;
+    }
+
+    return 0;
+}
+
+/**
  * @brief Destroy SDDC.
  *
  * @param[in] sddc          Pointer to SDDC
@@ -502,6 +540,12 @@ int sddc_destroy(sddc_t *sddc)
 #if SDDC_CFG_SECURITY_EN > 0
     if (sddc->security_en) {
         sddc_free((void *)sddc->invite_data);
+    }
+#endif
+
+#if SDDC_CFG_SECURITY_EN > 0
+    if (sddc->security_en) {
+        sddc_free((void *)sddc->abort_data);
     }
 #endif
 
@@ -558,6 +602,12 @@ sddc_t *sddc_create(uint16_t port)
 
     if (bind(sddc->fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         SDDC_LOG_ERR("Failed to bind port %u!\n", (unsigned)port);
+        sddc_destroy(sddc);
+        return NULL;
+    }
+
+    if (sddc_set_abort_data(sddc, SDDC_DEF_ABORT_DATA, SDDC_DEF_ABORT_DATA_LEN) < 0) {
+        SDDC_LOG_ERR("Failed to set default abort data!\n");
         sddc_destroy(sddc);
         return NULL;
     }
@@ -729,23 +779,47 @@ static void __sddc_read_handle(sddc_t *sddc)
             if (header->flags_type & SDDC_FLAG_REQ) {               /* PING request         */
                 SDDC_LOG_DBG("Receive ping from: %s.\n", ip_str);
 
-                /*
-                 * Build PING respond
-                 */
-                len = __sddc_build_packet(sddc, sddc->send_buf,
-                                          SDDC_TYPE_PING,
-                                          SDDC_FLAG_ACK,
-                                          SDDC_SEC_FLAG_NONE,
-                                          header->seqno,
-                                          NULL, 0);
+                if (edgeros) {
+                    /*
+                     * Build PING respond
+                     */
+                    len = __sddc_build_packet(sddc, sddc->send_buf,
+                                              SDDC_TYPE_PING,
+                                              SDDC_FLAG_ACK,
+                                              SDDC_SEC_FLAG_NONE,
+                                              header->seqno,
+                                              NULL, 0);
 
-                /*
-                 * Send PING respond to EdgerOS
-                 */
-                sendto(sddc->fd, sddc->send_buf, len, 0,
-                       (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+                    /*
+                     * Send PING respond to EdgerOS
+                     */
+                    sendto(sddc->fd, sddc->send_buf, len, 0,
+                           (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
 
-                SDDC_LOG_DBG("Send ping respond to: %s.\n", ip_str);
+                    SDDC_LOG_DBG("Send ping respond to: %s.\n", ip_str);
+                } else {
+                    /*
+                     * Build abort info
+                     */
+                    len = __sddc_build_packet(sddc, sddc->send_buf,
+                                              SDDC_TYPE_UPDATE,
+                                              SDDC_FLAG_NONE,
+#if SDDC_CFG_SECURITY_EN > 0
+                                              sddc->security_en ? SDDC_SEC_FLAG_CRYPTO : SDDC_SEC_FLAG_NONE,
+#else
+                                              SDDC_SEC_FLAG_NONE,
+#endif
+                                              header->seqno,
+                                              sddc->abort_data, sddc->abort_data_len);
+
+                    /*
+                     * Send abort info to EdgerOS
+                     */
+                    sendto(sddc->fd, sddc->send_buf, len, 0,
+                           (const struct sockaddr *)&cli_addr, sizeof(cli_addr));
+
+                    SDDC_LOG_DBG("Send abort info to: %s.\n", ip_str);
+                }
             } else {
                 SDDC_LOG_DBG("Receive ping respond from: %s.\n", ip_str);
             }

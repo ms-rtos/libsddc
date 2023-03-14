@@ -20,7 +20,7 @@ extern "C" {
 #include "sddc_config.h"
 #include <stdint.h>
 
-#define LIBSDDC_VERSION     120U
+#define LIBSDDC_VERSION     121U
 
 typedef uint8_t sddc_bool_t;
 #define SDDC_TRUE           1U
@@ -415,6 +415,17 @@ int sddc_set_report_data(sddc_t *sddc, const char *report_data, size_t len);
  * @return Error number
  */
 int sddc_set_invite_data(sddc_t *sddc, const char *invite_data, size_t len);
+
+/**
+ * @brief Set ABORT data.
+ *
+ * @param[in] sddc          Pointer to SDDC
+ * @param[in] abort_data    Pointer to ABORT data
+ * @param[in] len           The length to ABORT data
+ *
+ * @return Error number
+ */
+int sddc_set_abort_data(sddc_t *sddc, const char *abort_data, size_t len);
 
 /**
  * @brief Destroy SDDC.
