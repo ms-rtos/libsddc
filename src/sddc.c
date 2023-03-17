@@ -1336,6 +1336,55 @@ error:
 }
 
 /**
+ * @brief Send update request to a specified EdgerOS which connected.
+ *
+ * @notice Invoke this function when SDDC node IP changed
+ *
+ * @param[in] sddc          Pointer to SDDC
+ * @param[in] uid           Pointer to EdgerOS UID
+ *
+ * @return Error number
+ */
+int sddc_send_update(sddc_t *sddc, const uint8_t *uid)
+{
+    sddc_return_value_if_fail(sddc && uid, -1);
+
+    return __sddc_send_message(sddc, uid, SDDC_TYPE_UPDATE,
+                               sddc->report_data, sddc->report_data_len, 1, SDDC_TRUE, NULL);
+}
+
+/**
+ * @brief Broadcast message request to all EdgerOS which connected.
+ *
+ * @notice Invoke this function when SDDC node IP changed
+ *
+ * @param[in] sddc          Pointer to SDDC
+ *
+ * @return Error number
+ */
+int sddc_broadcast_update(sddc_t *sddc)
+{
+    sddc_list_head_t *itervar;
+    sddc_edgeros_t   *edgeros;
+    int               ret = 0;
+
+    sddc_return_value_if_fail(sddc, -1);
+
+    sddc_mutex_lock(&sddc->lockid);
+
+    sddc_list_for_each(itervar, &sddc->edgeros_list) {
+        edgeros = SDDC_CONTAINER_OF(itervar, sddc_edgeros_t, node);
+
+        ret |= __sddc_send_message(sddc, edgeros->uid, SDDC_TYPE_UPDATE,
+                                   sddc->report_data, sddc->report_data_len, 1, SDDC_TRUE, NULL);
+    }
+
+    sddc_mutex_unlock(&sddc->lockid);
+
+    return ret;
+}
+
+/**
  * @brief Send timestamp request to a specified EdgerOS which connected.
  *
  * @param[in] sddc          Pointer to SDDC
@@ -1383,7 +1432,7 @@ int sddc_send_message(sddc_t *sddc, const uint8_t *uid,
 }
 
 /**
- * @brief Send message request to a specified EdgerOS which connected.
+ * @brief Broadcast message request to all EdgerOS which connected.
  *
  * @param[in] sddc          Pointer to SDDC
  * @param[in] payload       Pointer to message payload data

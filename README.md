@@ -26,6 +26,8 @@ SDDC 协议实现了以下功能：
 [移植手册](doc/PORTING.md)
 
 ## 版本
+
+- v1.2.2  加入发送 UPDATE 请求功能，用于节点 IP 改变时通知 EdgerOS
  
 - v1.2.1  加入 ABORT INFO 报告功能
 

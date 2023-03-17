@@ -20,7 +20,7 @@ extern "C" {
 #include "sddc_config.h"
 #include <stdint.h>
 
-#define LIBSDDC_VERSION     121U
+#define LIBSDDC_VERSION     122U
 
 typedef uint8_t sddc_bool_t;
 #define SDDC_TRUE           1U
@@ -473,7 +473,7 @@ int sddc_send_message(sddc_t *sddc, const uint8_t *uid,
                       uint16_t *seqno);
 
 /**
- * @brief Broadcast message request to a specified EdgerOS which connected.
+ * @brief Broadcast message request to all EdgerOS which connected.
  *
  * @param[in] sddc          Pointer to SDDC
  * @param[in] payload       Pointer to message payload data
@@ -488,6 +488,29 @@ int sddc_broadcast_message(sddc_t *sddc,
                            const void *payload, size_t payload_len,
                            uint8_t retries, sddc_bool_t urgent,
                            uint16_t *seqno);
+
+/**
+ * @brief Send update request to a specified EdgerOS which connected.
+ *
+ * @notice Invoke this function when SDDC node IP changed
+ *
+ * @param[in] sddc          Pointer to SDDC
+ * @param[in] uid           Pointer to EdgerOS UID
+ *
+ * @return Error number
+ */
+int sddc_send_update(sddc_t *sddc, const uint8_t *uid);
+
+/**
+ * @brief Broadcast message request to all EdgerOS which connected.
+ *
+ * @notice Invoke this function when SDDC node IP changed
+ *
+ * @param[in] sddc          Pointer to SDDC
+ *
+ * @return Error number
+ */
+int sddc_broadcast_update(sddc_t *sddc);
 
 /**
  * @brief Send timestamp request to a specified EdgerOS which connected.
