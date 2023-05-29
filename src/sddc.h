@@ -20,7 +20,10 @@ extern "C" {
 #include "sddc_config.h"
 #include <stdint.h>
 
-#define LIBSDDC_VERSION     122U
+/*
+ * Version 1.2.3
+ */
+#define LIBSDDC_VERSION     123U
 
 typedef uint8_t sddc_bool_t;
 #define SDDC_TRUE           1U
@@ -204,7 +207,7 @@ typedef uint8_t sddc_bool_t;
  *  INVITE      YES
  *  PING        NO
  *  MESSAGE     YES
- *  TIMESTAMP   NO
+ *  TIMESTAMP   YES
  */
 
 /* Header uid length */

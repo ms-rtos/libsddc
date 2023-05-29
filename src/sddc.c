@@ -1090,7 +1090,20 @@ static void __sddc_read_handle(sddc_t *sddc)
                     SDDC_LOG_DBG("Receive TIMESTAMP respond from: %s.\n", ip_str);
 
                     if (sddc->on_timestamp != NULL) {
-                        sddc->on_timestamp(sddc, edgeros->uid, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length);
+#if SDDC_CFG_SECURITY_EN > 0
+                        if (header->security & SDDC_SEC_FLAG_CRYPTO) {
+                            unpack_ret = __sddc_decrypt(sddc, SDDC_PACKET_PAYLOAD(sddc->recv_buf), header->length,
+                                                        sddc->decypt_buf, &payload_len);
+                            payload    = sddc->decypt_buf;
+                        } else
+#endif
+                        {
+                            payload     = SDDC_PACKET_PAYLOAD(sddc->recv_buf);
+                            payload_len = header->length;
+                            unpack_ret  = 0;
+                        }
+
+                        sddc->on_timestamp(sddc, edgeros->uid, payload, payload_len);
                     }
 
                     if (edgeros->mqueue_len > 0) {
